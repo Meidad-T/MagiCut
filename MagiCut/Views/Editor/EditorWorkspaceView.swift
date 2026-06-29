@@ -36,21 +36,27 @@ struct EditorWorkspaceView: View {
                                 )
                                 
                             if viewModel.projectState.isBrushModeActive, !viewModel.objectContours.isEmpty {
-                                ContourShape(contours: viewModel.objectContours)
-                                    .trim(from: trimPhase, to: trimPhase + 0.15)
-                                    .stroke(Color.white, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
-                                    .shadow(color: .white, radius: 4, x: 0, y: 0)
-                                    .shadow(color: .blue, radius: 10, x: 0, y: 0)
-                                    .aspectRatio(image.size, contentMode: .fit)
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                    .scaleEffect(scale)
-                                    .offset(offset)
-                                    .onAppear {
-                                        // Slower animation for tracing the edge continuously
-                                        withAnimation(.linear(duration: 3.5).repeatForever(autoreverses: false)) {
-                                            trimPhase = 1.0
-                                        }
+                                ZStack {
+                                    ContourShape(contours: viewModel.objectContours)
+                                        .trim(from: trimPhase, to: trimPhase + 0.15)
+                                        .stroke(Color.white, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                                        
+                                    ContourShape(contours: viewModel.objectContours)
+                                        .trim(from: trimPhase - 1.0, to: trimPhase - 0.85)
+                                        .stroke(Color.white, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                                }
+                                .shadow(color: .white, radius: 2, x: 0, y: 0)
+                                .shadow(color: .blue, radius: 6, x: 0, y: 0)
+                                .aspectRatio(image.size, contentMode: .fit)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .scaleEffect(scale)
+                                .offset(offset)
+                                .onAppear {
+                                    // Slower animation for tracing the edge continuously
+                                    withAnimation(.linear(duration: 5.0).repeatForever(autoreverses: false)) {
+                                        trimPhase = 1.0
                                     }
+                                }
                             }
                                 
                             if viewModel.projectState.isBrushModeActive {
