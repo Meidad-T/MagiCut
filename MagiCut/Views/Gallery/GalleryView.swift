@@ -29,8 +29,6 @@ struct GalleryView: View {
                                     ForEach(0..<fetchResult.count, id: \.self) { index in
                                         let asset = fetchResult.object(at: index)
                                         GalleryThumbnail(asset: asset, viewModel: viewModel)
-                                            .aspectRatio(1, contentMode: .fill)
-                                            .clipped()
                                             .onTapGesture {
                                                 selectedSource = .asset(asset)
                                             }
@@ -111,34 +109,45 @@ struct GalleryThumbnail: View {
     @State private var requestID: PHImageRequestID?
     
     var body: some View {
-        GeometryReader { proxy in
-            Group {
-                if let image = image {
-                    Image(platformImage: image)
-                        .resizable()
-                        .scaledToFill()
-                } else {
-                    Color.gray.opacity(0.3)
+        Color.clear
+            .aspectRatio(1, contentMode: .fit)
+            .overlay(
+                GeometryReader { proxy in
+                    Group {
+                        if let image = image {
+                            Image(platformImage: image)
+                                .resizable()
+                                .scaledToFill()
+                        } else {
+                            Color.gray.opacity(0.3)
+                        }
+                    }
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+                    .clipped()
+                    .onAppear {
+                        // Multiplied by scale to get pixel-accurate resolution for retina
+                        #if canImport(UIKit)
+                        let scale = UIScreen.main.scale
+                        #else
+                        let scale = NSScreen.main?.backingScaleFactor ?? 1.0
+                        #endif
+                        
+                        let safeWidth = max(100, proxy.size.width)
+                        let safeHeight = max(100, proxy.size.height)
+                        let size = CGSize(width: safeWidth * scale, height: safeHeight * scale)
+                        
+                        requestID = viewModel.requestThumbnail(for: asset, targetSize: size) { result in
+                            self.image = result
+                        }
+                    }
+                    .onDisappear {
+                        if let requestID = requestID {
+                            viewModel.cancelThumbnailRequest(requestID)
+                        }
+                    }
                 }
-            }
-            .onAppear {
-                // Multiplied by scale to get pixel-accurate resolution for retina
-                #if canImport(UIKit)
-                let scale = UIScreen.main.scale
-                #else
-                let scale = NSScreen.main?.backingScaleFactor ?? 1.0
-                #endif
-                let size = CGSize(width: proxy.size.width * scale, height: proxy.size.height * scale)
-                requestID = viewModel.requestThumbnail(for: asset, targetSize: size) { result in
-                    self.image = result
-                }
-            }
-            .onDisappear {
-                if let requestID = requestID {
-                    viewModel.cancelThumbnailRequest(requestID)
-                }
-            }
-        }
+            )
+            .clipped()
     }
 }
 
