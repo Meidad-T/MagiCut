@@ -114,6 +114,7 @@ struct GalleryThumbnail: View {
                 }
             }
             .clipped()
+            .contentShape(Rectangle())
         .onAppear {
             // Using a standard, fixed size forces PHImageManager to use its high-performance cache
             // instead of generating uniquely sized images for every slight layout variation.
