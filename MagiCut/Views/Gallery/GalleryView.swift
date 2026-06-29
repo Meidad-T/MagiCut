@@ -36,6 +36,9 @@ struct GalleryView: View {
                                 }
                             }
                         }
+                        .refreshable {
+                            await viewModel.refresh()
+                        }
                     } else {
                         VStack(spacing: 20) {
                             Image(systemName: "photo.on.rectangle")

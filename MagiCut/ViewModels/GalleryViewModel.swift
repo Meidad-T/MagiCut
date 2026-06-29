@@ -36,6 +36,11 @@ class GalleryViewModel: NSObject, PHPhotoLibraryChangeObserver {
         self.fetchResult = photoLibraryService.fetchAssets()
     }
     
+    func refresh() async {
+        try? await Task.sleep(nanoseconds: 300_000_000) // Small delay for UI effect
+        fetchAssets()
+    }
+    
     func requestThumbnail(for asset: PHAsset, targetSize: CGSize, completion: @escaping (PlatformImage?) -> Void) -> PHImageRequestID {
         let options = PHImageRequestOptions()
         options.deliveryMode = .opportunistic
