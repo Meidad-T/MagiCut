@@ -27,8 +27,6 @@ struct GalleryView: View {
                                     ForEach(0..<fetchResult.count, id: \.self) { index in
                                         let asset = fetchResult.object(at: index)
                                         GalleryThumbnail(asset: asset, viewModel: viewModel)
-                                            .aspectRatio(1, contentMode: .fill)
-                                            .clipped()
                                             .onTapGesture {
                                                 selectedSource = .asset(asset)
                                             }
@@ -105,15 +103,17 @@ struct GalleryThumbnail: View {
     @State private var requestID: PHImageRequestID?
     
     var body: some View {
-        Group {
-            if let image = image {
-                Image(platformImage: image)
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                Color.gray.opacity(0.3)
+        Rectangle()
+            .fill(Color.gray.opacity(0.3))
+            .aspectRatio(1, contentMode: .fit)
+            .overlay {
+                if let image = image {
+                    Image(platformImage: image)
+                        .resizable()
+                        .scaledToFill()
+                }
             }
-        }
+            .clipped()
         .onAppear {
             // Using a standard, fixed size forces PHImageManager to use its high-performance cache
             // instead of generating uniquely sized images for every slight layout variation.
