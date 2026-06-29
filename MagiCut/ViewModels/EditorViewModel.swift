@@ -112,6 +112,12 @@ class EditorViewModel {
         projectState.activeTarget = target
     }
     
+    func revertToOriginal() {
+        projectState.subjectEdits = EditControls()
+        projectState.backgroundEdits = EditControls()
+        updateRenderedImage()
+    }
+    
     private func updateControl(_ block: (inout EditControls) -> Void) {
         if projectState.activeTarget == .subject {
             block(&projectState.subjectEdits)

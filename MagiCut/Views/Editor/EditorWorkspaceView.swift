@@ -93,7 +93,7 @@ struct EditorWorkspaceView: View {
             if isEditing {
                 ToolbarItem(placement: .navigation) {
                     Button("Revert to Original") {
-                        // Implement revert logic
+                        viewModel?.revertToOriginal()
                     }
                 }
                 
