@@ -25,9 +25,9 @@ struct GalleryView: View {
                     if viewModel.isAuthorized {
                         ScrollView {
                             if let fetchResult = viewModel.fetchResult, fetchResult.count > 0 {
-                                HStack(alignment: .top, spacing: 2) {
+                                HStack(alignment: .top, spacing: 16) {
                                     ForEach(0..<columnsCount, id: \.self) { colIndex in
-                                        LazyVStack(spacing: 2) {
+                                        LazyVStack(spacing: 16) {
                                             let indices = stride(from: colIndex, to: fetchResult.count, by: columnsCount).map { $0 }
                                             ForEach(indices, id: \.self) { index in
                                                 let asset = fetchResult.object(at: index)
@@ -39,7 +39,8 @@ struct GalleryView: View {
                                         }
                                     }
                                 }
-                                .padding(.horizontal, 2)
+                                .padding(.horizontal, 16)
+                                .padding(.top, 16)
                             }
                         }
                     } else {
@@ -135,6 +136,7 @@ struct GalleryThumbnail: View {
                 }
             }
             .clipped()
+            .cornerRadius(8)
             .contentShape(Rectangle())
         .onAppear {
             // Using a standard, fixed size forces PHImageManager to use its high-performance cache

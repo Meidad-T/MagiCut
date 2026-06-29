@@ -16,4 +16,6 @@ struct EditControls: Equatable {
     var tint: Float = 0.0         // -100.0 to 100.0
     
     var sharpness: Float = 0.0    // 0.0 to 10.0
+    
+    var filterName: String = "Original" // Active PhotoFilter
 }

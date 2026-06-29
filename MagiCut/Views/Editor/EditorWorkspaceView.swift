@@ -64,10 +64,12 @@ struct EditorWorkspaceView: View {
                     VStack {
                         if editTab == .adjust {
                             AdjustSidebarView(viewModel: viewModel)
+                        } else if editTab == .filters {
+                            FiltersSidebarView(viewModel: viewModel)
                         } else if editTab == .reimagine {
                             ReimagineSidebarView(viewModel: viewModel)
                         } else {
-                            Text("Coming Soon")
+                            Text("Crop - Coming Soon")
                                 .foregroundColor(.secondary)
                         }
                     }

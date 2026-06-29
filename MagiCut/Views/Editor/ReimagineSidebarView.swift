@@ -56,6 +56,7 @@ struct ReimagineSidebarView: View {
                     }
                     Text(isGenerating ? "Generating..." : "Generate")
                         .bold()
+                        .fixedSize(horizontal: true, vertical: false)
                     Spacer()
                 }
                 .padding(.vertical, 10)

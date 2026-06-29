@@ -16,6 +16,33 @@ class ImageProcessingService {
     func applyAdjustments(to image: CIImage, controls: EditControls) -> CIImage {
         var result = image
         
+        // 0. Pre-process Filter (Apple Standard & Custom Rainbows)
+        if controls.filterName != "Original" {
+            // Check if it's a built-in Apple filter
+            if let filterMapping = getCIFilter(for: controls.filterName) {
+                let filter = CIFilter(name: filterMapping)
+                filter?.setValue(result, forKey: kCIInputImageKey)
+                result = filter?.outputImage ?? result
+            } 
+            // Check if it's a custom Rainbow filter
+            else if controls.filterName.starts(with: "Rainbow") {
+                let hueFilter = CIFilter.hueAdjust()
+                hueFilter.inputImage = result
+                // Determine hue angle based on color name
+                switch controls.filterName {
+                case "Rainbow Red": hueFilter.angle = 0.0
+                case "Rainbow Orange": hueFilter.angle = 0.3
+                case "Rainbow Yellow": hueFilter.angle = 0.6
+                case "Rainbow Green": hueFilter.angle = 2.0
+                case "Rainbow Blue": hueFilter.angle = -2.0
+                case "Rainbow Indigo": hueFilter.angle = -1.5
+                case "Rainbow Violet": hueFilter.angle = -1.0
+                default: hueFilter.angle = 0.0
+                }
+                result = hueFilter.outputImage ?? result
+            }
+        }
+        
         // 1. Exposure
         if controls.exposure != 0.0 {
             let exposureFilter = CIFilter.exposureAdjust()
@@ -94,5 +121,21 @@ class ImageProcessingService {
         blendFilter.maskImage = scaledMask
         
         return blendFilter.outputImage ?? originalImage
+    }
+    
+    // Helper to map UI string to CoreImage Filter
+    private func getCIFilter(for name: String) -> String? {
+        switch name {
+        case "Vivid": return "CIPhotoEffectChrome"
+        case "Vivid Warm": return "CIPhotoEffectTransfer"
+        case "Vivid Cool": return "CIPhotoEffectProcess"
+        case "Dramatic": return "CIPhotoEffectFade"
+        case "Dramatic Warm": return "CIPhotoEffectInstant"
+        case "Dramatic Cool": return "CIPhotoEffectProcess"
+        case "Mono": return "CIPhotoEffectMono"
+        case "Silvertone": return "CIPhotoEffectTonal"
+        case "Noir": return "CIPhotoEffectNoir"
+        default: return nil
+        }
     }
 }
