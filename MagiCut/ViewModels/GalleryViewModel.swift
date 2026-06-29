@@ -3,7 +3,7 @@ import Photos
 
 @Observable
 @MainActor
-class GalleryViewModel {
+class GalleryViewModel: NSObject, PHPhotoLibraryChangeObserver {
     private let photoLibraryService: PhotoLibraryService
     
     var fetchResult: PHFetchResult<PHAsset>?
@@ -14,6 +14,12 @@ class GalleryViewModel {
     init(photoLibraryService: PhotoLibraryService) {
         self.photoLibraryService = photoLibraryService
         self.isAuthorized = photoLibraryService.authorizationStatus == .authorized || photoLibraryService.authorizationStatus == .limited
+        super.init()
+        PHPhotoLibrary.shared().register(self)
+    }
+    
+    deinit {
+        PHPhotoLibrary.shared().unregisterChangeObserver(self)
     }
     
     func checkPermissionsAndFetch() async {
@@ -42,5 +48,14 @@ class GalleryViewModel {
     
     func cancelThumbnailRequest(_ requestID: PHImageRequestID) {
         imageManager.cancelImageRequest(requestID)
+    }
+    
+    nonisolated func photoLibraryDidChange(_ changeInstance: PHChange) {
+        Task { @MainActor in
+            guard let currentFetchResult = self.fetchResult else { return }
+            if let changes = changeInstance.changeDetails(for: currentFetchResult) {
+                self.fetchResult = changes.fetchResultAfterChanges
+            }
+        }
     }
 }
