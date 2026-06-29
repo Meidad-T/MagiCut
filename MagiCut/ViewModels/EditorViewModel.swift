@@ -15,7 +15,7 @@ class EditorViewModel {
     var renderedImage: CIImage?
     
     var uiImage: PlatformImage?
-    var outlineImage: PlatformImage?
+    var objectContours: [CGPath] = []
     
     var isSaving: Bool = false
     var saveError: Error?
@@ -85,12 +85,17 @@ class EditorViewModel {
         )
         generatePlatformImage()
         
-        // Generate glowing outline
+        // Generate vector contours
         Task.detached(priority: .background) { [weak self] in
             guard let self = self else { return }
-            if let outline = self.imageProcessingService.generateOutlineImage(from: mask) {
+            do {
+                let paths = try await self.visionService.extractContours(from: mask)
                 Task { @MainActor in
-                    self.outlineImage = outline
+                    self.objectContours = paths
+                }
+            } catch {
+                Task { @MainActor in
+                    self.objectContours = []
                 }
             }
         }

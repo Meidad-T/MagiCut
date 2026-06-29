@@ -28,6 +28,26 @@ class VisionService {
         }
     }
     
+    func extractContours(from mask: CIImage) async throws -> [CGPath] {
+        let request = VNDetectContoursRequest()
+        request.contrastAdjustment = 1.0
+        request.detectsDarkOnLight = false // Our mask is white (light) subject on black (dark) background
+        
+        let handler = VNImageRequestHandler(ciImage: mask, options: [:])
+        try handler.perform([request])
+        
+        guard let observations = request.results as? [VNContoursObservation] else { return [] }
+        
+        var paths: [CGPath] = []
+        for observation in observations {
+            for contour in observation.topLevelContours {
+                paths.append(contour.normalizedPath)
+            }
+        }
+        
+        return paths
+    }
+    
     /// Reads the CVPixelBuffer to find the Instance IDs at the given normalized (0-1) coordinates
     func getInstances(at normalizedPoints: [CGPoint], in session: SubjectMaskSession) -> IndexSet {
         let instanceMask = session.observation.instanceMask

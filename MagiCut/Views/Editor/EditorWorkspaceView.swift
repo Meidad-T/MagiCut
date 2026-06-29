@@ -10,7 +10,7 @@ struct EditorWorkspaceView: View {
     @State private var scale: CGFloat = 1.0
     @State private var offset: CGSize = .zero
     @State private var brushPoints: [CGPoint] = []
-    @State private var swooshRotation: Double = 0
+    @State private var trimPhase: CGFloat = 0
     
     @State private var isEditing: Bool = false
     @State private var editTab: EditTab = .adjust
@@ -35,26 +35,20 @@ struct EditorWorkspaceView: View {
                                         }
                                 )
                                 
-                            if viewModel.projectState.isBrushModeActive, let outline = viewModel.outlineImage {
-                                Image(platformImage: outline)
-                                    .resizable()
-                                    .scaledToFit()
+                            if viewModel.projectState.isBrushModeActive, !viewModel.objectContours.isEmpty {
+                                ContourShape(contours: viewModel.objectContours)
+                                    .trim(from: trimPhase, to: trimPhase + 0.15)
+                                    .stroke(Color.white, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+                                    .shadow(color: .white, radius: 4, x: 0, y: 0)
+                                    .shadow(color: .blue, radius: 10, x: 0, y: 0)
+                                    .aspectRatio(image.size, contentMode: .fit)
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                                     .scaleEffect(scale)
                                     .offset(offset)
-                                    .mask {
-                                        AngularGradient(
-                                            gradient: Gradient(colors: [.clear, .clear, .clear, .white]),
-                                            center: .center,
-                                            angle: .degrees(0)
-                                        )
-                                        .rotationEffect(.degrees(swooshRotation))
-                                    }
-                                    .shadow(color: .white, radius: 2, x: 0, y: 0)
-                                    .shadow(color: .blue, radius: 8, x: 0, y: 0)
                                     .onAppear {
-                                        withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
-                                            swooshRotation = 360.0
+                                        // Slower animation for tracing the edge continuously
+                                        withAnimation(.linear(duration: 3.5).repeatForever(autoreverses: false)) {
+                                            trimPhase = 1.0
                                         }
                                     }
                             }
@@ -226,5 +220,28 @@ struct EditorWorkspaceView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Contour Shape
+
+struct ContourShape: Shape {
+    let contours: [CGPath]
+    
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        
+        // Vision returns normalized paths with (0,0) at bottom-left. We flip Y for SwiftUI (top-left).
+        var flipTransform = CGAffineTransform(scaleX: 1, y: -1).translatedBy(x: 0, y: -1)
+        var scaleTransform = CGAffineTransform(scaleX: rect.width, y: rect.height)
+        
+        for contour in contours {
+            if let flippedPath = contour.copy(using: &flipTransform),
+               let finalPath = flippedPath.copy(using: &scaleTransform) {
+                path.addPath(Path(finalPath))
+            }
+        }
+        
+        return path
     }
 }
