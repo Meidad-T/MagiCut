@@ -5,21 +5,15 @@ import CoreImage.CIFilterBuiltins
 enum PhotoFilter: String, CaseIterable, Identifiable {
     case original = "Original"
     case vivid = "Vivid"
-    case vividWarm = "Vivid Warm"
-    case vividCool = "Vivid Cool"
-    case dramatic = "Dramatic"
-    case dramaticWarm = "Dramatic Warm"
-    case dramaticCool = "Dramatic Cool"
-    case mono = "Mono"
-    case silvertone = "Silvertone"
-    case noir = "Noir"
-    case rainbowRed = "Rainbow Red"
-    case rainbowOrange = "Rainbow Orange"
-    case rainbowYellow = "Rainbow Yellow"
-    case rainbowGreen = "Rainbow Green"
-    case rainbowBlue = "Rainbow Blue"
-    case rainbowIndigo = "Rainbow Indigo"
-    case rainbowViolet = "Rainbow Violet"
+    case oldTV = "Old TV"
+    case halftone = "Halftone Print"
+    case hardOutline = "Hard Outline"
+    case comic = "Comic Book"
+    case paintCrystallize = "Crystal Paint"
+    case paintPointillize = "Pointillism"
+    case retro8Bit = "8-Bit Retro"
+    case highContrastBW = "High Contrast B&W"
+    case posterize = "Posterize"
     
     var id: String { rawValue }
     
@@ -27,16 +21,16 @@ enum PhotoFilter: String, CaseIterable, Identifiable {
     var ciFilterName: String? {
         switch self {
         case .original: return nil
-        case .vivid: return "CIPhotoEffectChrome" // Closest to Vivid
-        case .vividWarm: return "CIPhotoEffectTransfer"
-        case .vividCool: return "CIPhotoEffectProcess"
-        case .dramatic: return "CIPhotoEffectFade"
-        case .dramaticWarm: return "CIPhotoEffectInstant"
-        case .dramaticCool: return "CIPhotoEffectProcess" // Dramatic cool approx
-        case .mono: return "CIPhotoEffectMono"
-        case .silvertone: return "CIPhotoEffectTonal"
-        case .noir: return "CIPhotoEffectNoir"
-        default: return "Custom" // Rainbows use custom CIHueAdjust
+        case .vivid: return "CIPhotoEffectChrome"
+        case .oldTV: return "Custom"
+        case .halftone: return "Custom"
+        case .hardOutline: return "Custom"
+        case .comic: return "CIComicEffect"
+        case .paintCrystallize: return "Custom"
+        case .paintPointillize: return "Custom"
+        case .retro8Bit: return "Custom"
+        case .highContrastBW: return "Custom"
+        case .posterize: return "Custom"
         }
     }
 }

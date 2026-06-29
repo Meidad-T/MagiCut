@@ -24,22 +24,9 @@ class ImageProcessingService {
                 filter?.setValue(result, forKey: kCIInputImageKey)
                 result = filter?.outputImage ?? result
             } 
-            // Check if it's a custom Rainbow filter
-            else if controls.filterName.starts(with: "Rainbow") {
-                let hueFilter = CIFilter.hueAdjust()
-                hueFilter.inputImage = result
-                // Determine hue angle based on color name
-                switch controls.filterName {
-                case "Rainbow Red": hueFilter.angle = 0.0
-                case "Rainbow Orange": hueFilter.angle = 0.3
-                case "Rainbow Yellow": hueFilter.angle = 0.6
-                case "Rainbow Green": hueFilter.angle = 2.0
-                case "Rainbow Blue": hueFilter.angle = -2.0
-                case "Rainbow Indigo": hueFilter.angle = -1.5
-                case "Rainbow Violet": hueFilter.angle = -1.0
-                default: hueFilter.angle = 0.0
-                }
-                result = hueFilter.outputImage ?? result
+            // Check if it's a custom filter
+            else {
+                result = applyCustomFilter(name: controls.filterName, to: result)
             }
         }
         
@@ -127,15 +114,94 @@ class ImageProcessingService {
     private func getCIFilter(for name: String) -> String? {
         switch name {
         case "Vivid": return "CIPhotoEffectChrome"
-        case "Vivid Warm": return "CIPhotoEffectTransfer"
-        case "Vivid Cool": return "CIPhotoEffectProcess"
-        case "Dramatic": return "CIPhotoEffectFade"
-        case "Dramatic Warm": return "CIPhotoEffectInstant"
-        case "Dramatic Cool": return "CIPhotoEffectProcess"
-        case "Mono": return "CIPhotoEffectMono"
-        case "Silvertone": return "CIPhotoEffectTonal"
-        case "Noir": return "CIPhotoEffectNoir"
         default: return nil
         }
+    }
+    
+    // Complex Custom Filter Chains
+    private func applyCustomFilter(name: String, to image: CIImage) -> CIImage {
+        var result = image
+        let extent = image.extent
+        
+        switch name {
+        case "Old TV":
+            // High contrast
+            let colorFilter = CIFilter.colorControls()
+            colorFilter.inputImage = result
+            colorFilter.contrast = 1.3
+            colorFilter.saturation = 1.5
+            result = colorFilter.outputImage ?? result
+            
+            // Scanlines
+            let lines = CIFilter.lineScreen()
+            lines.inputImage = result
+            lines.center = CGPoint(x: extent.midX, y: extent.midY)
+            lines.angle = .pi / 2 // Horizontal scanlines
+            lines.width = max(2.0, Float(extent.height) * 0.002)
+            lines.sharpness = 0.7
+            result = lines.outputImage ?? result
+            
+        case "Halftone Print":
+            let halftone = CIFilter.cmykHalftone()
+            halftone.inputImage = result
+            halftone.center = CGPoint(x: extent.midX, y: extent.midY)
+            halftone.width = max(4.0, Float(extent.width) * 0.005)
+            halftone.angle = 0.5
+            result = halftone.outputImage ?? result
+            
+        case "Hard Outline":
+            let edges = CIFilter.edgeWork()
+            edges.inputImage = result
+            edges.radius = max(2.0, Float(extent.width) * 0.003)
+            result = edges.outputImage ?? result
+            
+        case "Comic Book":
+            let comic = CIFilter.comicEffect()
+            comic.inputImage = result
+            result = comic.outputImage ?? result
+            
+        case "Crystal Paint":
+            let crystal = CIFilter.crystallize()
+            crystal.inputImage = result
+            crystal.radius = max(5.0, Float(min(extent.width, extent.height)) * 0.02)
+            crystal.center = CGPoint(x: extent.midX, y: extent.midY)
+            result = crystal.outputImage ?? result
+            
+        case "Pointillism":
+            let point = CIFilter.pointillize()
+            point.inputImage = result
+            point.radius = max(3.0, Float(min(extent.width, extent.height)) * 0.015)
+            point.center = CGPoint(x: extent.midX, y: extent.midY)
+            result = point.outputImage ?? result
+            
+        case "8-Bit Retro":
+            let pixel = CIFilter.pixellate()
+            pixel.inputImage = result
+            pixel.scale = max(4.0, Float(min(extent.width, extent.height)) * 0.015)
+            pixel.center = CGPoint(x: extent.midX, y: extent.midY)
+            result = pixel.outputImage ?? result
+            
+        case "High Contrast B&W":
+            let mono = CIFilter.photoEffectNoir()
+            mono.inputImage = result
+            result = mono.outputImage ?? result
+            
+            let colorFilter = CIFilter.colorControls()
+            colorFilter.inputImage = result
+            colorFilter.contrast = 2.0
+            colorFilter.brightness = -0.1
+            result = colorFilter.outputImage ?? result
+            
+        case "Posterize":
+            let poster = CIFilter.colorPosterize()
+            poster.inputImage = result
+            poster.levels = 4.0
+            result = poster.outputImage ?? result
+            
+        default:
+            break
+        }
+        
+        return result
     }
 }
