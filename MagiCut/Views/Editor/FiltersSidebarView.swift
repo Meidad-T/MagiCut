@@ -146,10 +146,8 @@ struct FilterRowView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .task {
-            if previewImage == nil {
-                previewImage = await viewModel.generateFilterPreview(for: filter.rawValue)
-            }
+        .task(id: viewModel.projectState.activeTarget) {
+            previewImage = await viewModel.generateFilterPreview(for: filter.rawValue)
         }
     }
 }

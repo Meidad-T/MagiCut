@@ -174,6 +174,11 @@ class EditorViewModel {
     func generateFilterPreview(for filterName: String) async -> PlatformImage? {
         guard let original = projectState.originalImage else { return nil }
         
+        let activeTarget = projectState.activeTarget
+        let currentSubjectEdits = projectState.subjectEdits
+        let currentBackgroundEdits = projectState.backgroundEdits
+        let subjectMask = projectState.subjectMask
+        
         // Process on a background thread
         return await Task.detached(priority: .userInitiated) { [weak self] in
             guard let self = self else { return nil }
@@ -182,12 +187,32 @@ class EditorViewModel {
             let scale = 100.0 / max(original.extent.width, original.extent.height)
             let tinyImage = original.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
             
-            var controls = EditControls()
-            controls.filterName = filterName
+            var testSubjectEdits = currentSubjectEdits
+            var testBackgroundEdits = currentBackgroundEdits
             
-            let processedCI = self.imageProcessingService.applyAdjustments(to: tinyImage, controls: controls)
+            if activeTarget == .subject {
+                testSubjectEdits.filterName = filterName
+            } else {
+                testBackgroundEdits.filterName = filterName
+            }
             
-            if let cgImage = self.imageProcessingService.context.createCGImage(processedCI, from: processedCI.extent) {
+            let finalCI: CIImage
+            if let mask = subjectMask {
+                let maskScaleX = tinyImage.extent.width / mask.extent.width
+                let maskScaleY = tinyImage.extent.height / mask.extent.height
+                let tinyMask = mask.transformed(by: CGAffineTransform(scaleX: maskScaleX, y: maskScaleY))
+                
+                finalCI = self.imageProcessingService.compositeImages(
+                    originalImage: tinyImage,
+                    subjectMask: tinyMask,
+                    subjectEdits: testSubjectEdits,
+                    backgroundEdits: testBackgroundEdits
+                )
+            } else {
+                finalCI = self.imageProcessingService.applyAdjustments(to: tinyImage, controls: testBackgroundEdits)
+            }
+            
+            if let cgImage = self.imageProcessingService.context.createCGImage(finalCI, from: finalCI.extent) {
                 return PlatformImage(cgImage: cgImage)
             }
             return nil
