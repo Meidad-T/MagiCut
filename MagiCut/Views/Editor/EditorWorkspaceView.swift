@@ -38,15 +38,15 @@ struct EditorWorkspaceView: View {
                             if viewModel.projectState.isBrushModeActive, !viewModel.objectContours.isEmpty {
                                 ZStack {
                                     ContourShape(contours: viewModel.objectContours)
-                                        .trim(from: trimPhase, to: trimPhase + 0.15)
-                                        .stroke(Color.white.opacity(0.85), style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+                                        .trim(from: trimPhase, to: trimPhase + 0.05)
+                                        .stroke(Color.white, style: StrokeStyle(lineWidth: 1.0, lineCap: .round, lineJoin: .round))
                                         
                                     ContourShape(contours: viewModel.objectContours)
-                                        .trim(from: trimPhase - 1.0, to: trimPhase - 0.85)
-                                        .stroke(Color.white.opacity(0.85), style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+                                        .trim(from: trimPhase - 1.0, to: trimPhase - 0.95)
+                                        .stroke(Color.white, style: StrokeStyle(lineWidth: 1.0, lineCap: .round, lineJoin: .round))
                                 }
-                                .shadow(color: .white.opacity(0.5), radius: 1, x: 0, y: 0)
-                                .shadow(color: .blue.opacity(0.6), radius: 4, x: 0, y: 0)
+                                .shadow(color: .white, radius: 2, x: 0, y: 0)
+                                .shadow(color: .blue, radius: 4, x: 0, y: 0)
                                 .aspectRatio(image.size, contentMode: .fit)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                                 .scaleEffect(scale)
@@ -54,7 +54,7 @@ struct EditorWorkspaceView: View {
                                 .onAppear {
                                     trimPhase = 0.0
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                                        withAnimation(.linear(duration: 4.0).repeatForever(autoreverses: false)) {
+                                        withAnimation(.linear(duration: 0.8).repeatForever(autoreverses: false)) {
                                             trimPhase = 1.0
                                         }
                                     }
