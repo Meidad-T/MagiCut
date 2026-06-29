@@ -13,7 +13,10 @@ class EditorViewModel {
     let projectState = ProjectState()
     
     var renderedImage: CIImage?
-    var uiImage: PlatformImage? // The final display image
+    
+    var uiImage: PlatformImage?
+    var outlineImage: PlatformImage?
+    
     var isSaving: Bool = false
     var saveError: Error?
     
@@ -81,6 +84,16 @@ class EditorViewModel {
             backgroundEdits: projectState.backgroundEdits
         )
         generatePlatformImage()
+        
+        // Generate glowing outline
+        Task.detached(priority: .background) { [weak self] in
+            guard let self = self else { return }
+            if let outline = self.imageProcessingService.generateOutlineImage(from: mask) {
+                Task { @MainActor in
+                    self.outlineImage = outline
+                }
+            }
+        }
     }
     
     private func generatePlatformImage() {

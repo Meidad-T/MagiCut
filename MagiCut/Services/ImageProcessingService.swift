@@ -204,4 +204,22 @@ class ImageProcessingService {
         
         return result
     }
+    
+    /// Generates a white outline image with a transparent background from a mask
+    func generateOutlineImage(from mask: CIImage) -> PlatformImage? {
+        let edgeFilter = CIFilter.morphologyGradient()
+        edgeFilter.inputImage = mask
+        edgeFilter.radius = 5.0
+        
+        guard let edgeImage = edgeFilter.outputImage else { return nil }
+        
+        let alphaFilter = CIFilter.maskToAlpha()
+        alphaFilter.inputImage = edgeImage
+        guard let finalCI = alphaFilter.outputImage else { return nil }
+        
+        if let cgImage = context.createCGImage(finalCI, from: mask.extent) {
+            return PlatformImage(cgImage: cgImage)
+        }
+        return nil
+    }
 }

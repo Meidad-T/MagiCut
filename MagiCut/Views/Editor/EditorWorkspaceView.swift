@@ -10,6 +10,7 @@ struct EditorWorkspaceView: View {
     @State private var scale: CGFloat = 1.0
     @State private var offset: CGSize = .zero
     @State private var brushPoints: [CGPoint] = []
+    @State private var swooshRotation: Double = 0
     
     @State private var isEditing: Bool = false
     @State private var editTab: EditTab = .adjust
@@ -33,6 +34,29 @@ struct EditorWorkspaceView: View {
                                             scale = max(Constants.Editor.minZoomScale, min(Constants.Editor.maxZoomScale, value))
                                         }
                                 )
+                                
+                            if viewModel.projectState.isBrushModeActive, let outline = viewModel.outlineImage {
+                                Image(platformImage: outline)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    .scaleEffect(scale)
+                                    .offset(offset)
+                                    .mask {
+                                        AngularGradient(
+                                            gradient: Gradient(colors: [.clear, .clear, .clear, .white]),
+                                            center: .center,
+                                            angle: .degrees(swooshRotation)
+                                        )
+                                    }
+                                    .shadow(color: .white, radius: 2, x: 0, y: 0)
+                                    .shadow(color: .blue, radius: 8, x: 0, y: 0)
+                                    .onAppear {
+                                        withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
+                                            swooshRotation = 360.0
+                                        }
+                                    }
+                            }
                                 
                             if viewModel.projectState.isBrushModeActive {
                                 Canvas { context, size in

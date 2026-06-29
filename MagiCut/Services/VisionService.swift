@@ -46,9 +46,10 @@ class VisionService {
         
         for point in normalizedPoints {
             // Normalized points from SwiftUI typically have 0,0 at top-left.
-            // VNInstanceMask CVPixelBuffer also has 0,0 at top-left.
+            // VNInstanceMask CVPixelBuffer coordinates may have 0,0 at bottom-left depending on origin.
+            // But actually, CoreImage works bottom-up, and VNInstanceMask Observation is derived from CIImage.
             let x = Int(point.x * CGFloat(width))
-            let y = Int(point.y * CGFloat(height))
+            let y = Int((1.0 - point.y) * CGFloat(height)) // FLIP Y-AXIS
             
             let clampedX = min(max(x, 0), width - 1)
             let clampedY = min(max(y, 0), height - 1)
@@ -61,6 +62,7 @@ class VisionService {
             }
         }
         
+        print("Smart Brush Touched Instances: \(selectedInstances)")
         return selectedInstances
     }
     
