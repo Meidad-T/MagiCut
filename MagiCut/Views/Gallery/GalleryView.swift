@@ -21,7 +21,9 @@ struct GalleryView: View {
             Group {
                 if let viewModel = viewModel {
                     if viewModel.isAuthorized {
-                        ScrollView {
+                        CustomRefreshableScrollView(onRefresh: {
+                            await viewModel.refresh()
+                        }) {
                             if let fetchResult = viewModel.fetchResult, fetchResult.count > 0 {
                                 LazyVGrid(columns: columns, spacing: 1) {
                                     ForEach(0..<fetchResult.count, id: \.self) { index in
@@ -35,9 +37,6 @@ struct GalleryView: View {
                                     }
                                 }
                             }
-                        }
-                        .refreshable {
-                            await viewModel.refresh()
                         }
                     } else {
                         VStack(spacing: 20) {
@@ -83,6 +82,10 @@ struct GalleryView: View {
                     self.viewModel = vm
                     Task {
                         await vm.checkPermissionsAndFetch()
+                    }
+                } else {
+                    Task {
+                        await viewModel?.refresh()
                     }
                 }
             }
@@ -136,5 +139,58 @@ struct GalleryThumbnail: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Custom macOS Pull-to-Refresh
+
+struct CustomRefreshableScrollView<Content: View>: View {
+    var onRefresh: () async -> Void
+    @ViewBuilder var content: () -> Content
+    
+    @State private var isRefreshing = false
+    
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                if isRefreshing {
+                    ProgressView()
+                        .padding()
+                        .transition(.scale.combined(with: .opacity))
+                }
+                
+                GeometryReader { proxy in
+                    Color.clear.preference(
+                        key: ScrollOffsetPreferenceKey.self,
+                        value: proxy.frame(in: .named("scroll")).minY
+                    )
+                }
+                .frame(height: 0)
+                
+                content()
+            }
+        }
+        .coordinateSpace(name: "scroll")
+        .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
+            // When user over-scrolls past 60 points at the top
+            if value > 60 && !isRefreshing {
+                withAnimation(.spring()) {
+                    isRefreshing = true
+                }
+                Task {
+                    await onRefresh()
+                    withAnimation(.spring()) {
+                        isRefreshing = false
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct ScrollOffsetPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value += nextValue()
     }
 }
