@@ -44,21 +44,21 @@ struct EditorWorkspaceView: View {
                                         
                                         ContourShape(contours: viewModel.objectContours)
                                             .trim(from: trimPhase - tailLength, to: trimPhase)
-                                            .stroke(Color.white.opacity(opacity), style: StrokeStyle(lineWidth: 2.0, lineCap: .butt, lineJoin: .round))
+                                            .stroke(Color.white.opacity(opacity), style: StrokeStyle(lineWidth: 1.0, lineCap: .butt, lineJoin: .round))
                                             
                                         ContourShape(contours: viewModel.objectContours)
-                                            .trim(from: trimPhase - tailLength - 1.0, to: trimPhase - 1.0)
-                                            .stroke(Color.white.opacity(opacity), style: StrokeStyle(lineWidth: 2.0, lineCap: .butt, lineJoin: .round))
+                                            .trim(from: trimPhase - tailLength + 1.0, to: trimPhase + 1.0)
+                                            .stroke(Color.white.opacity(opacity), style: StrokeStyle(lineWidth: 1.0, lineCap: .butt, lineJoin: .round))
                                     }
                                     
                                     // The Bright Head
                                     ContourShape(contours: viewModel.objectContours)
                                         .trim(from: trimPhase - 0.02, to: trimPhase)
-                                        .stroke(Color.white, style: StrokeStyle(lineWidth: 2.0, lineCap: .round, lineJoin: .round))
+                                        .stroke(Color.white, style: StrokeStyle(lineWidth: 1.0, lineCap: .round, lineJoin: .round))
                                         
                                     ContourShape(contours: viewModel.objectContours)
-                                        .trim(from: trimPhase - 1.02, to: trimPhase - 1.0)
-                                        .stroke(Color.white, style: StrokeStyle(lineWidth: 2.0, lineCap: .round, lineJoin: .round))
+                                        .trim(from: trimPhase - 0.02 + 1.0, to: trimPhase + 1.0)
+                                        .stroke(Color.white, style: StrokeStyle(lineWidth: 1.0, lineCap: .round, lineJoin: .round))
                                 }
                                 .shadow(color: .white, radius: 2, x: 0, y: 0)
                                 .shadow(color: .blue, radius: 5, x: 0, y: 0)
