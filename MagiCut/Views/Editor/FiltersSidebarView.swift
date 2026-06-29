@@ -76,6 +76,8 @@ struct FilterRowView: View {
     let filter: PhotoFilter
     @Bindable var viewModel: EditorViewModel
     
+    @State private var previewImage: PlatformImage?
+    
     // Active filter name based on active target
     private var activeFilterName: String {
         switch viewModel.projectState.activeTarget {
@@ -101,7 +103,17 @@ struct FilterRowView: View {
         }) {
             HStack(spacing: 16) {
                 // Miniature thumbnail preview
-                if let uiImage = viewModel.uiImage {
+                if let preview = previewImage {
+                    Image(platformImage: preview)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 44, height: 44)
+                        .cornerRadius(6)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 2)
+                        )
+                } else if let uiImage = viewModel.uiImage {
                     Image(platformImage: uiImage)
                         .resizable()
                         .scaledToFill()
@@ -134,5 +146,10 @@ struct FilterRowView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .task {
+            if previewImage == nil {
+                previewImage = await viewModel.generateFilterPreview(for: filter.rawValue)
+            }
+        }
     }
 }

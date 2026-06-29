@@ -170,4 +170,27 @@ class EditorViewModel {
         get { projectState.activeTarget == .subject ? projectState.subjectEdits.sharpness : projectState.backgroundEdits.sharpness }
         set { updateControl { $0.sharpness = newValue } }
     }
+    
+    func generateFilterPreview(for filterName: String) async -> PlatformImage? {
+        guard let original = projectState.originalImage else { return nil }
+        
+        // Process on a background thread
+        return await Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self = self else { return nil }
+            
+            // Scale down the image for massive performance gain before applying complex filters
+            let scale = 100.0 / max(original.extent.width, original.extent.height)
+            let tinyImage = original.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+            
+            var controls = EditControls()
+            controls.filterName = filterName
+            
+            let processedCI = self.imageProcessingService.applyAdjustments(to: tinyImage, controls: controls)
+            
+            if let cgImage = self.imageProcessingService.context.createCGImage(processedCI, from: processedCI.extent) {
+                return PlatformImage(cgImage: cgImage)
+            }
+            return nil
+        }.value
+    }
 }
