@@ -37,16 +37,31 @@ struct EditorWorkspaceView: View {
                                 
                             if viewModel.projectState.isBrushModeActive, !viewModel.objectContours.isEmpty {
                                 ZStack {
+                                    // The Comet Tail (stacking opacities to create a smooth fade)
+                                    ForEach(0..<15, id: \.self) { i in
+                                        let tailLength = CGFloat(15 - i) * 0.02
+                                        let opacity = 0.15
+                                        
+                                        ContourShape(contours: viewModel.objectContours)
+                                            .trim(from: trimPhase - tailLength, to: trimPhase)
+                                            .stroke(Color.white.opacity(opacity), style: StrokeStyle(lineWidth: 2.0, lineCap: .butt, lineJoin: .round))
+                                            
+                                        ContourShape(contours: viewModel.objectContours)
+                                            .trim(from: trimPhase - tailLength - 1.0, to: trimPhase - 1.0)
+                                            .stroke(Color.white.opacity(opacity), style: StrokeStyle(lineWidth: 2.0, lineCap: .butt, lineJoin: .round))
+                                    }
+                                    
+                                    // The Bright Head
                                     ContourShape(contours: viewModel.objectContours)
-                                        .trim(from: trimPhase, to: trimPhase + 0.05)
-                                        .stroke(Color.white, style: StrokeStyle(lineWidth: 1.0, lineCap: .round, lineJoin: .round))
+                                        .trim(from: trimPhase - 0.02, to: trimPhase)
+                                        .stroke(Color.white, style: StrokeStyle(lineWidth: 2.0, lineCap: .round, lineJoin: .round))
                                         
                                     ContourShape(contours: viewModel.objectContours)
-                                        .trim(from: trimPhase - 1.0, to: trimPhase - 0.95)
-                                        .stroke(Color.white, style: StrokeStyle(lineWidth: 1.0, lineCap: .round, lineJoin: .round))
+                                        .trim(from: trimPhase - 1.02, to: trimPhase - 1.0)
+                                        .stroke(Color.white, style: StrokeStyle(lineWidth: 2.0, lineCap: .round, lineJoin: .round))
                                 }
                                 .shadow(color: .white, radius: 2, x: 0, y: 0)
-                                .shadow(color: .blue, radius: 4, x: 0, y: 0)
+                                .shadow(color: .blue, radius: 5, x: 0, y: 0)
                                 .aspectRatio(image.size, contentMode: .fit)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                                 .scaleEffect(scale)
@@ -54,7 +69,7 @@ struct EditorWorkspaceView: View {
                                 .onAppear {
                                     trimPhase = 0.0
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                                        withAnimation(.linear(duration: 0.8).repeatForever(autoreverses: false)) {
+                                        withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
                                             trimPhase = 1.0
                                         }
                                     }
