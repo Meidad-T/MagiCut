@@ -51,8 +51,9 @@ class EditorViewModel {
             projectState.displayImage = ciImage
             
             // Extract the subject
-            if let mask = try await visionService.generateMask(from: ciImage) {
-                projectState.subjectMask = mask
+            if let session = try await visionService.generateMask(from: ciImage) {
+                projectState.maskSession = session
+                projectState.subjectMask = session.originalMask
             }
             
             updateRenderedImage()
@@ -116,6 +117,40 @@ class EditorViewModel {
         projectState.subjectEdits = EditControls()
         projectState.backgroundEdits = EditControls()
         updateRenderedImage()
+    }
+    
+    // MARK: - Smart Brush Selection
+    
+    func toggleBrushMode() {
+        projectState.isBrushModeActive.toggle()
+        if !projectState.isBrushModeActive {
+            // Revert to original auto-mask when disabling brush mode
+            if let session = projectState.maskSession {
+                projectState.subjectMask = session.originalMask
+                updateRenderedImage()
+            }
+        }
+    }
+    
+    func processBrushStrokes(points: [CGPoint]) {
+        guard projectState.isBrushModeActive,
+              let session = projectState.maskSession else { return }
+        
+        Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self = self else { return }
+            
+            // Get all unique object instances intersected by the drawn stroke
+            let instances = self.visionService.getInstances(at: points, in: session)
+            guard !instances.isEmpty else { return }
+            
+            // Regenerate the mask isolating only those specific instances
+            if let newMask = try? self.visionService.generateMask(for: instances, in: session) {
+                Task { @MainActor in
+                    self.projectState.subjectMask = newMask
+                    self.updateRenderedImage()
+                }
+            }
+        }
     }
     
     private func updateControl(_ block: (inout EditControls) -> Void) {

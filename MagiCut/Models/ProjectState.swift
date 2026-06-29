@@ -25,4 +25,10 @@ class ProjectState {
     
     /// The target currently being edited
     var activeTarget: EditTarget = .subject
+    
+    /// The interactive selection session
+    var maskSession: SubjectMaskSession?
+    
+    /// Whether Smart Brush mode is active
+    var isBrushModeActive: Bool = false
 }

@@ -9,6 +9,7 @@ struct EditorWorkspaceView: View {
     @State private var viewModel: EditorViewModel?
     @State private var scale: CGFloat = 1.0
     @State private var offset: CGSize = .zero
+    @State private var brushPoints: [CGPoint] = []
     
     @State private var isEditing: Bool = false
     @State private var editTab: EditTab = .adjust
@@ -32,6 +33,52 @@ struct EditorWorkspaceView: View {
                                             scale = max(Constants.Editor.minZoomScale, min(Constants.Editor.maxZoomScale, value))
                                         }
                                 )
+                                
+                            if viewModel.projectState.isBrushModeActive {
+                                Canvas { context, size in
+                                    var path = Path()
+                                    guard let first = brushPoints.first else { return }
+                                    path.move(to: first)
+                                    for point in brushPoints.dropFirst() {
+                                        path.addLine(to: point)
+                                    }
+                                    context.stroke(path, with: .color(.green.opacity(0.8)), style: StrokeStyle(lineWidth: 30, lineCap: .round, lineJoin: .round))
+                                }
+                                .gesture(
+                                    DragGesture(minimumDistance: 0)
+                                        .onChanged { value in
+                                            brushPoints.append(value.location)
+                                        }
+                                        .onEnded { value in
+                                            // Compute normalized points based on Aspect Fit size
+                                            let imageAspect = image.size.width / image.size.height
+                                            let containerAspect = proxy.size.width / proxy.size.height
+                                            
+                                            let drawRect: CGRect
+                                            if imageAspect > containerAspect {
+                                                let height = proxy.size.width / imageAspect
+                                                drawRect = CGRect(x: 0, y: (proxy.size.height - height) / 2, width: proxy.size.width, height: height)
+                                            } else {
+                                                let width = proxy.size.height * imageAspect
+                                                drawRect = CGRect(x: (proxy.size.width - width) / 2, y: 0, width: width, height: proxy.size.height)
+                                            }
+                                            
+                                            let normalizedPoints = brushPoints.compactMap { point -> CGPoint? in
+                                                guard drawRect.contains(point) else { return nil }
+                                                return CGPoint(
+                                                    x: (point.x - drawRect.minX) / drawRect.width,
+                                                    y: (point.y - drawRect.minY) / drawRect.height
+                                                )
+                                            }
+                                            
+                                            viewModel.processBrushStrokes(points: normalizedPoints)
+                                            
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                                brushPoints.removeAll()
+                                            }
+                                        }
+                                )
+                            }
                         } else {
                             ProgressView()
                                 .tint(.white)
@@ -92,8 +139,18 @@ struct EditorWorkspaceView: View {
         .toolbar {
             if isEditing {
                 ToolbarItem(placement: .navigation) {
-                    Button("Revert to Original") {
-                        viewModel?.revertToOriginal()
+                    HStack {
+                        Button("Revert to Original") {
+                            viewModel?.revertToOriginal()
+                        }
+                        
+                        Button(action: {
+                            viewModel?.toggleBrushMode()
+                        }) {
+                            Label("Smart Brush", systemImage: "paintbrush.pointed")
+                                .foregroundColor(viewModel?.projectState.isBrushModeActive == true ? .green : .primary)
+                        }
+                        .help("Draw to select specific objects")
                     }
                 }
                 
