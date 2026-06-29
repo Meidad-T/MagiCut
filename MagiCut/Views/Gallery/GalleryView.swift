@@ -105,33 +105,29 @@ struct GalleryThumbnail: View {
     @State private var requestID: PHImageRequestID?
     
     var body: some View {
-        GeometryReader { proxy in
-            Group {
-                if let image = image {
-                    Image(platformImage: image)
-                        .resizable()
-                        .scaledToFill()
-                } else {
-                    Color.gray.opacity(0.3)
-                }
+        Group {
+            if let image = image {
+                Image(platformImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Color.gray.opacity(0.3)
             }
-            .onAppear {
-                // Multiplied by scale to get pixel-accurate resolution for retina
-                #if canImport(UIKit)
-                let scale = UIScreen.main.scale
-                #else
-                let scale = NSScreen.main?.backingScaleFactor ?? 1.0
-                #endif
-                let size = CGSize(width: proxy.size.width * scale, height: proxy.size.height * scale)
-                requestID = viewModel.requestThumbnail(for: asset, targetSize: size) { result in
-                    self.image = result
-                }
+        }
+        .onAppear {
+            // Using a standard, fixed size forces PHImageManager to use its high-performance cache
+            // instead of generating uniquely sized images for every slight layout variation.
+            let size = CGSize(width: 300, height: 300)
+            requestID = viewModel.requestThumbnail(for: asset, targetSize: size) { result in
+                self.image = result
             }
-            .onDisappear {
-                if let requestID = requestID {
-                    viewModel.cancelThumbnailRequest(requestID)
-                }
+        }
+        .onDisappear {
+            if let requestID = requestID {
+                viewModel.cancelThumbnailRequest(requestID)
             }
+            // Aggressively free memory when scrolled off-screen
+            self.image = nil
         }
     }
 }
