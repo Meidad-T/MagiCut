@@ -11,6 +11,7 @@ struct EditorWorkspaceView: View {
     @State private var offset: CGSize = .zero
     @State private var brushPoints: [CGPoint] = []
     @State private var trimPhase: CGFloat = 0
+    @State private var isShowingOriginal: Bool = false
     
     @State private var isEditing: Bool = false
     @State private var editTab: EditTab = .adjust
@@ -22,7 +23,8 @@ struct EditorWorkspaceView: View {
                 GeometryReader { proxy in
                     ZStack {
                         if let image = viewModel.uiImage {
-                            Image(platformImage: image)
+                            let displayImage = (isShowingOriginal && viewModel.originalUIImage != nil) ? viewModel.originalUIImage! : image
+                            Image(platformImage: displayImage)
                                 .resizable()
                                 .scaledToFit()
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -146,6 +148,17 @@ struct EditorWorkspaceView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
+                    .simultaneousGesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { _ in
+                                if !viewModel.projectState.isBrushModeActive {
+                                    isShowingOriginal = true
+                                }
+                            }
+                            .onEnded { _ in
+                                isShowingOriginal = false
+                            }
+                    )
                 }
                 
                 // Right Sidebar (Edit Mode)

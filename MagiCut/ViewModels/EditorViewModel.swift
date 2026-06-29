@@ -15,6 +15,7 @@ class EditorViewModel {
     var renderedImage: CIImage?
     
     var uiImage: PlatformImage?
+    var originalUIImage: PlatformImage?
     var objectContours: [CGPath] = []
     
     var isSaving: Bool = false
@@ -49,6 +50,12 @@ class EditorViewModel {
             }
             
             projectState.originalImage = ciImage
+            
+            if let cgImage = imageProcessingService.context.createCGImage(ciImage, from: ciImage.extent) {
+                Task { @MainActor in
+                    self.originalUIImage = PlatformImage(cgImage: cgImage)
+                }
+            }
             
             // Downsample for UI performance if needed (omitted for simplicity here, CIContext can handle it)
             projectState.displayImage = ciImage
