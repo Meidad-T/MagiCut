@@ -97,7 +97,11 @@ class EditorViewModel {
         defer { isSaving = false }
         
         do {
-            try await photoLibraryService.saveImageToLibrary(ciImage: finalImage, context: imageProcessingService.context)
+            var originalAsset: PHAsset? = nil
+            if case .asset(let asset) = source {
+                originalAsset = asset
+            }
+            try await photoLibraryService.saveImageToLibrary(ciImage: finalImage, context: imageProcessingService.context, originalAsset: originalAsset)
         } catch {
             self.saveError = error
             print("Save failed: \(error)")
