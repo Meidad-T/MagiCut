@@ -24,19 +24,14 @@ class PhotoLibraryService {
     }
     
     /// Fetches all images from the library, sorted by creation date
-    func fetchAssets() -> [PHAsset] {
+    func fetchAssets() -> PHFetchResult<PHAsset>? {
         let currentStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-        guard currentStatus == .authorized || currentStatus == .limited else { return [] }
+        guard currentStatus == .authorized || currentStatus == .limited else { return nil }
         
         let fetchOptions = PHFetchOptions()
         fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
         
-        let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
-        var assets: [PHAsset] = []
-        fetchResult.enumerateObjects { (asset, _, _) in
-            assets.append(asset)
-        }
-        return assets
+        return PHAsset.fetchAssets(with: .image, options: fetchOptions)
     }
     
     /// Fetches a high quality CIImage from a PHAsset for editing

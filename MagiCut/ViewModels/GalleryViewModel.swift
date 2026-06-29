@@ -6,7 +6,7 @@ import Photos
 class GalleryViewModel {
     private let photoLibraryService: PhotoLibraryService
     
-    var assets: [PHAsset] = []
+    var fetchResult: PHFetchResult<PHAsset>?
     var isAuthorized: Bool = false
     
     private let imageManager = PHCachingImageManager()
@@ -27,7 +27,7 @@ class GalleryViewModel {
     }
     
     private func fetchAssets() {
-        self.assets = photoLibraryService.fetchAssets()
+        self.fetchResult = photoLibraryService.fetchAssets()
     }
     
     func requestThumbnail(for asset: PHAsset, targetSize: CGSize, completion: @escaping (PlatformImage?) -> Void) -> PHImageRequestID {

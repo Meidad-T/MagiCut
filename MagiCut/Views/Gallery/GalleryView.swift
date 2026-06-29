@@ -8,9 +8,13 @@ struct GalleryView: View {
     
     @State private var selectedSource: ImageSource?
     
-    let columns = [
-        GridItem(.adaptive(minimum: 100, maximum: 150), spacing: 2)
-    ]
+    let columns: [GridItem] = {
+        #if canImport(UIKit)
+        return Array(repeating: GridItem(.flexible(), spacing: 1), count: 3)
+        #else
+        return Array(repeating: GridItem(.flexible(), spacing: 1), count: 5)
+        #endif
+    }()
     
     var body: some View {
         NavigationStack {
@@ -18,14 +22,17 @@ struct GalleryView: View {
                 if let viewModel = viewModel {
                     if viewModel.isAuthorized {
                         ScrollView {
-                            LazyVGrid(columns: columns, spacing: 2) {
-                                ForEach(viewModel.assets, id: \.localIdentifier) { asset in
-                                    GalleryThumbnail(asset: asset, viewModel: viewModel)
-                                        .aspectRatio(1, contentMode: .fill)
-                                        .clipped()
-                                        .onTapGesture {
-                                            selectedSource = .asset(asset)
-                                        }
+                            if let fetchResult = viewModel.fetchResult, fetchResult.count > 0 {
+                                LazyVGrid(columns: columns, spacing: 1) {
+                                    ForEach(0..<fetchResult.count, id: \.self) { index in
+                                        let asset = fetchResult.object(at: index)
+                                        GalleryThumbnail(asset: asset, viewModel: viewModel)
+                                            .aspectRatio(1, contentMode: .fill)
+                                            .clipped()
+                                            .onTapGesture {
+                                                selectedSource = .asset(asset)
+                                            }
+                                    }
                                 }
                             }
                         }
@@ -64,6 +71,9 @@ struct GalleryView: View {
                 }
             }
             .navigationTitle("Photos")
+            #if canImport(UIKit)
+            .navigationBarTitleDisplayMode(.large)
+            #endif
             .onAppear {
                 if viewModel == nil {
                     let vm = GalleryViewModel(photoLibraryService: di.photoLibraryService)
