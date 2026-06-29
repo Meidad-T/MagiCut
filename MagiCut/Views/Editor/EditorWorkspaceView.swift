@@ -10,8 +10,11 @@ struct EditorWorkspaceView: View {
     @State private var scale: CGFloat = 1.0
     @State private var offset: CGSize = .zero
     
+    @State private var isEditing: Bool = false
+    @State private var editTab: EditTab = .adjust
+    
     var body: some View {
-        VStack(spacing: 0) {
+        HStack(spacing: 0) {
             if let viewModel = viewModel {
                 // Canvas Area
                 GeometryReader { proxy in
@@ -49,12 +52,29 @@ struct EditorWorkspaceView: View {
                             }
                         }
                     }
-                    .frame(width: proxy.size.width, height: proxy.size.height)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
                 }
                 
-                // Bottom Tools
-                ToolPickerView(viewModel: viewModel)
+                // Right Sidebar (Edit Mode)
+                if isEditing {
+                    Divider()
+                        .ignoresSafeArea()
+                    
+                    VStack {
+                        if editTab == .adjust {
+                            AdjustSidebarView(viewModel: viewModel)
+                        } else if editTab == .reimagine {
+                            ReimagineSidebarView(viewModel: viewModel)
+                        } else {
+                            Text("Coming Soon")
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .frame(width: 320)
+                    .background(Color(NSColor.windowBackgroundColor))
+                    .transition(.move(edge: .trailing))
+                }
             } else {
                 Spacer()
                 ProgressView()
@@ -66,32 +86,52 @@ struct EditorWorkspaceView: View {
         #if canImport(UIKit)
         .navigationBarTitleDisplayMode(.inline)
         #endif
+        .navigationBarBackButtonHidden(isEditing)
         .toolbar {
-            #if canImport(UIKit)
-            ToolbarItem(placement: .navigationBarTrailing) {
-                if let viewModel = viewModel {
-                    Button("Save") {
-                        Task {
-                            await viewModel.saveToLibrary()
-                            dismiss()
+            if isEditing {
+                ToolbarItem(placement: .navigation) {
+                    Button("Revert to Original") {
+                        // Implement revert logic
+                    }
+                }
+                
+                ToolbarItemGroup(placement: .principal) {
+                    Picker("", selection: $editTab) {
+                        Text("Adjust").tag(EditTab.adjust)
+                        Text("Filters").tag(EditTab.filters)
+                        Text("Crop").tag(EditTab.crop)
+                        Text("Re-imagine").tag(EditTab.reimagine)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 350)
+                }
+                
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Done") {
+                        withAnimation {
+                            isEditing = false
                         }
                     }
-                    .disabled(viewModel.projectState.isGeneratingMask || viewModel.isSaving)
+                    .buttonStyle(.borderedProminent)
+                    .tint(.yellow)
+                    .foregroundColor(.black)
                 }
-            }
-            #else
-            ToolbarItem(placement: .automatic) {
-                if let viewModel = viewModel {
-                    Button("Save") {
-                        Task {
-                            await viewModel.saveToLibrary()
-                            dismiss()
+            } else {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Button(action: {}) { Image(systemName: "info.circle") }
+                    Button(action: {}) { Image(systemName: "square.and.arrow.up") }
+                    Button(action: {}) { Image(systemName: "heart") }
+                    Button(action: {}) { Image(systemName: "flip.horizontal") }
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            isEditing = true
                         }
+                    }) { 
+                        Image(systemName: "wand.and.stars") 
                     }
-                    .disabled(viewModel.projectState.isGeneratingMask || viewModel.isSaving)
+                    .help("Edit (Magic Brush)")
                 }
             }
-            #endif
         }
         .onAppear {
             if viewModel == nil {

@@ -13,8 +13,6 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		106EC83C2FF2DE1A00E9B52F /* MagiCut */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = MagiCut;
 			sourceTree = "<group>";
 		};
