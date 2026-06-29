@@ -46,8 +46,9 @@ struct EditorWorkspaceView: View {
                                         AngularGradient(
                                             gradient: Gradient(colors: [.clear, .clear, .clear, .white]),
                                             center: .center,
-                                            angle: .degrees(swooshRotation)
+                                            angle: .degrees(0)
                                         )
+                                        .rotationEffect(.degrees(swooshRotation))
                                     }
                                     .shadow(color: .white, radius: 2, x: 0, y: 0)
                                     .shadow(color: .blue, radius: 8, x: 0, y: 0)
