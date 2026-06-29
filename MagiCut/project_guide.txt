@@ -1,0 +1,121 @@
+Markdown
+# Magic Mask
+## Engineering Design & Implementation Blueprint
+**Architecture Specification**
+Version 2.0 (Comprehensive AI Prompt Guide)
+Target Framework: SwiftUI, Vision, Core Image
+
+---
+
+
+
+# 1. Product Requirements Document (PRD) Overview
+**Objective:** To build a flagship-quality iOS/iPadOS application ("Magic Mask") that leverages advanced on-device machine learning for subject isolation, masking, and high-fidelity compositing. The app must feel native, responsive, and maintain pristine image quality from import to export.
+
+## 1.1 Core Features
+* **Photos-Like Gallery & Picker:** Native integration with `PHPickerViewController` and custom grid views for media selection.
+* **Intelligent Subject Segmentation:** One-tap background removal utilizing the Vision framework.
+* **Manual Mask Refinement:** Brush-based masking tools (add/subtract) with edge-aware feathering.
+* **Non-Destructive Compositing:** Layer-based editing allowing background replacement and Core Image filter application.
+* **Lossless Export Pipeline:** preserving metadata, color spaces (Display P3), and maximum resolution.
+
+## 1.2 Target Audience & Experience
+Designed for power users, photographers, and creatives who expect zero compromise on image quality engineering. The UI must be fluid (consistent 120fps on ProMotion displays), employing synchronous scrolling, immediate visual feedback, and native gesture handling.
+
+# 2. Architecture Design (MVVM & Services)
+The codebase strictly adheres to an **MVVM (Model-View-ViewModel)** architecture coupled with a Service-Oriented approach. Dependency Injection (DI) is utilized to ensure testability and modularity.
+
+
+
+## 2.1 Core Architectural Principles
+* **SOLID Principles:** Single responsibility for all ViewModels and Services.
+* **Concurrency:** Extensive use of Swift Structured Concurrency (`async/await`, `TaskGroup`) instead of GCD or Combine for business logic. Combine is reserved exclusively for reactive UI bindings where appropriate, though `@Observable` (Observation framework) is preferred for iOS 17+.
+* **State Management:** Single source of truth. ViewModels manage transient state; Services manage persistent/global state.
+
+> **AI Coding Directive: Dependency Injection**
+> All AI-generated ViewModels MUST accept their required Services via initialization. Do not use Singletons directly inside Views or ViewModels. Generate a `DependencyContainer` or `Environment` wrapper to pass services down the view hierarchy.
+
+# 3. Directory & File Specifications
+The AI must generate the codebase strictly following this directory structure to maintain organization across 60+ files.
+
+
+
+```text
+MagicMask/
+├── App/
+│   ├── MagicMaskApp.swift          # App entry point, sets up DI container
+│   └── DependencyContainer.swift   # Registers and resolves Services
+├── Models/
+│   ├── Project.swift               # Core data model for an editing session
+│   ├── MaskLayer.swift             # Represents a composite layer
+│   └── ToolState.swift             # Enum representing active UI tools
+├── Views/
+│   ├── Gallery/
+│   │   ├── GalleryView.swift       # Main photo grid
+│   │   └── GalleryThumbnail.swift  
+│   ├── Editor/
+│   │   ├── EditorWorkspaceView.swift # Main editing canvas
+│   │   ├── ToolPickerView.swift    # Bottom toolbar for brush/magic wand
+│   │   └── LayerStackView.swift    # Z-index layer management UI
+│   └── Components/                 # Reusable UI (Buttons, Sliders)
+├── ViewModels/
+│   ├── GalleryViewModel.swift      # Manages PHAsset fetching
+│   └── EditorViewModel.swift       # Binds tools, handles gestures
+├── Services/
+│   ├── VisionService.swift         # VNGenerateForegroundInstanceMaskRequest
+│   ├── ImageProcessingService.swift# CoreImage pipeline and CIContext
+│   ├── ExportService.swift         # Handles rendering to CGImage/Data
+│   └── CacheManager.swift          # Memory/Disk cache for fast UI
+├── CoreImage/
+│   ├── CustomFilters/              # Metal-backed custom CIFilters
+│   └── CIFilter+Extensions.swift
+└── Utilities/
+    ├── Extensions/                 # UIImage, CGImage, CGRect extensions
+    └── Constants.swift             # UI metrics, standard colors
+4. Core Systems Engineering
+4.1 Vision Framework Integration
+The VisionService is responsible for intelligent masking. To achieve state-of-the-art results, the AI must implement VNGenerateForegroundInstanceMaskRequest (available iOS 17+).
+Execution: Requests must be executed on a background Task to prevent main thread blocking.
+Handling Results: The resulting CVPixelBuffer mask must be converted to a CIImage for compositing.
+Fallback: For unsupported devices, implement a fallback using VNGeneratePersonSegmentationRequest.
+4.2 Core Image Rendering Pipeline
+Because of the stringent image quality engineering requirements, all compositing happens via Core Image backed by a Metal device.
+Swift
+// AI Instruction: Initialize CIContext globally for performance
+let context = CIContext(options: [
+    .cacheIntermediates: false,
+    .useSoftwareRenderer: false,
+    .name: "com.magicmask.metal-context"
+])
+Compositing: Use CIBlendWithMask. The background image, the foreground image, and the Vision-generated mask are the inputs.
+Color Space: All intermediate processing must occur in linear space, exporting finally to CGColorSpace(name: CGColorSpace.displayP3).
+4.3 Memory and Performance Optimization
+Working with 48MP ProRAW photos requires strict memory management.
+Display vs. Render: The UI (SwiftUI Image) must only display downsampled proxy images (e.g., max 1024x1024). The full-resolution data is kept on disk or in a mapped buffer, processed only during the final export.
+Caching: Implement NSCache for decoded UI thumbnails. Cost limits must be calculated based on physical device RAM (using ProcessInfo.processInfo.physicalMemory).
+
+
+5. UI/UX Interaction Details (Photos-Like)
+The application must feel indistinguishable from a first-party Apple app.
+5.1 Editor Canvas Interaction
+Zoom & Pan: Implement a custom UIViewRepresentable for a UIScrollView to handle deep zooming of the canvas. Native SwiftUI MagnificationGesture is often too jittery for professional pixel-level editing.
+Haptic Feedback: Trigger UIImpactFeedbackGenerator(.light) when masking tools snap to edges or when layers are rearranged.
+Non-blocking UI: While Vision models are running, the UI must remain interactive, displaying an elegant, blurred loading state over the image canvas.
+
+
+6. Phased AI Implementation Plan
+To successfully prompt the AI coder, feed it this document and request code generation in the following distinct milestones. Do not request the entire codebase at once.
+Phase	Focus Area	Deliverables to request from AI
+Phase 1	Foundation & Models	App Entry, DI Container, Data Models (Project, Layer), Constants.
+Phase 2	Services	VisionService, ImageProcessingService, CacheManager. Unit tests for these.
+Phase 3	View Models	GalleryViewModel, EditorViewModel, State management logic.
+Phase 4	UI Views (Gallery)	Photos permissions, Grid layout, smooth scrolling thumbnails.
+Phase 5	UI Views (Editor)	Canvas rendering, gesture recognizers, toolbar, loading states.
+Phase 6	Export & Polish	ExportService (writing to Photo Library), memory leak checks.
+
+
+7. Coding Standards for AI Generation
+Code must be documented using standard Swift Markdown (///).
+No force unwrapping (!). Handle all Optionals gracefully with guard or if let.
+Use @MainActor for ViewModels and UI-updating functions.
+Define custom Error enums conforming to LocalizedError for user-facing alerts.
