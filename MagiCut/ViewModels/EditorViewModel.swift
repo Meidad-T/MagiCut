@@ -88,7 +88,10 @@ class EditorViewModel {
             originalImage: original,
             subjectMask: mask,
             subjectEdits: projectState.subjectEdits,
-            backgroundEdits: projectState.backgroundEdits
+            backgroundEdits: projectState.backgroundEdits,
+            customBackgroundImage: projectState.customBackgroundImage,
+            customBackgroundOffset: projectState.customBackgroundOffset,
+            customBackgroundScale: projectState.customBackgroundScale
         )
         generatePlatformImage()
         
@@ -141,6 +144,28 @@ class EditorViewModel {
     func revertToOriginal() {
         projectState.subjectEdits = EditControls()
         projectState.backgroundEdits = EditControls()
+        projectState.customBackgroundImage = nil
+        projectState.customBackgroundOffset = .zero
+        projectState.customBackgroundScale = 1.0
+        updateRenderedImage()
+    }
+    
+    // MARK: - Custom Background
+    
+    func setCustomBackground(from data: Data) {
+        guard let platformImage = PlatformImage(data: data),
+              let cgImage = platformImage.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
+        
+        projectState.customBackgroundImage = CIImage(cgImage: cgImage)
+        projectState.customBackgroundOffset = .zero
+        projectState.customBackgroundScale = 1.0
+        
+        updateRenderedImage()
+    }
+    
+    func updateCustomBackgroundOffset(_ offset: CGSize, scale: CGFloat) {
+        projectState.customBackgroundOffset = offset
+        projectState.customBackgroundScale = scale
         updateRenderedImage()
     }
     
@@ -262,6 +287,10 @@ class EditorViewModel {
                 testBackgroundEdits.filterName = filterName
             }
             
+            let customBackgroundImage = projectState.customBackgroundImage
+            let customBackgroundOffset = projectState.customBackgroundOffset
+            let customBackgroundScale = projectState.customBackgroundScale
+            
             let finalCI: CIImage
             if let mask = subjectMask {
                 let maskScaleX = tinyImage.extent.width / mask.extent.width
@@ -272,7 +301,10 @@ class EditorViewModel {
                     originalImage: tinyImage,
                     subjectMask: tinyMask,
                     subjectEdits: testSubjectEdits,
-                    backgroundEdits: testBackgroundEdits
+                    backgroundEdits: testBackgroundEdits,
+                    customBackgroundImage: customBackgroundImage,
+                    customBackgroundOffset: customBackgroundOffset,
+                    customBackgroundScale: customBackgroundScale
                 )
             } else {
                 finalCI = self.imageProcessingService.applyAdjustments(to: tinyImage, controls: testBackgroundEdits)

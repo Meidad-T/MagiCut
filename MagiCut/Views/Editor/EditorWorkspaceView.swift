@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 import Photos
 
 struct EditorWorkspaceView: View {
@@ -12,6 +13,9 @@ struct EditorWorkspaceView: View {
     @State private var brushPoints: [CGPoint] = []
     @State private var trimPhase: CGFloat = 0
     @State private var isShowingOriginal: Bool = false
+    
+    @State private var customBackgroundItem: PhotosPickerItem? = nil
+    @State private var finalCustomBackgroundOffset: CGSize = .zero
     
     @State private var isEditing: Bool = false
     @State private var editTab: EditTab = .adjust
@@ -150,13 +154,30 @@ struct EditorWorkspaceView: View {
                     .clipped()
                     .simultaneousGesture(
                         DragGesture(minimumDistance: 0)
-                            .onChanged { _ in
+                            .onChanged { value in
                                 if !viewModel.projectState.isBrushModeActive {
-                                    isShowingOriginal = true
+                                    if abs(value.translation.width) < 5 && abs(value.translation.height) < 5 {
+                                        isShowingOriginal = true
+                                    } else {
+                                        isShowingOriginal = false
+                                        if viewModel.projectState.customBackgroundImage != nil {
+                                            let newOffset = CGSize(
+                                                width: finalCustomBackgroundOffset.width + value.translation.width,
+                                                height: finalCustomBackgroundOffset.height + value.translation.height
+                                            )
+                                            viewModel.updateCustomBackgroundOffset(newOffset, scale: 1.0)
+                                        }
+                                    }
                                 }
                             }
-                            .onEnded { _ in
+                            .onEnded { value in
                                 isShowingOriginal = false
+                                if viewModel.projectState.customBackgroundImage != nil, !viewModel.projectState.isBrushModeActive {
+                                    finalCustomBackgroundOffset = CGSize(
+                                        width: finalCustomBackgroundOffset.width + value.translation.width,
+                                        height: finalCustomBackgroundOffset.height + value.translation.height
+                                    )
+                                }
                             }
                     )
                 }
@@ -200,6 +221,7 @@ struct EditorWorkspaceView: View {
                     HStack {
                         Button("Revert to Original") {
                             viewModel?.revertToOriginal()
+                            finalCustomBackgroundOffset = .zero
                         }
                         
                         Button(action: {
@@ -209,6 +231,17 @@ struct EditorWorkspaceView: View {
                                 .foregroundColor(viewModel?.projectState.isBrushModeActive == true ? .green : .primary)
                         }
                         .help("Draw to select specific objects")
+                        
+                        PhotosPicker(selection: $customBackgroundItem, matching: .images) {
+                            Label("Replace Background", systemImage: "photo.badge.plus")
+                        }
+                        .help("Choose a new background image")
+                        .task(id: customBackgroundItem) {
+                            if let data = try? await customBackgroundItem?.loadTransferable(type: Data.self) {
+                                viewModel?.setCustomBackground(from: data)
+                                finalCustomBackgroundOffset = .zero
+                            }
+                        }
                     }
                 }
                 

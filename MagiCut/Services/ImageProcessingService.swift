@@ -86,9 +86,21 @@ class ImageProcessingService {
     }
     
     /// Composites the edited subject and edited background using the vision mask
-    func compositeImages(originalImage: CIImage, subjectMask: CIImage, subjectEdits: EditControls, backgroundEdits: EditControls) -> CIImage {
+    func compositeImages(originalImage: CIImage, subjectMask: CIImage, subjectEdits: EditControls, backgroundEdits: EditControls, customBackgroundImage: CIImage? = nil, customBackgroundOffset: CGSize = .zero, customBackgroundScale: CGFloat = 1.0) -> CIImage {
         // 1. Apply edits to the background layer
-        let editedBackground = applyAdjustments(to: originalImage, controls: backgroundEdits)
+        let backgroundToUse: CIImage
+        if let customBg = customBackgroundImage {
+            // Apply scale and translation. CIImage origin is bottom-left, but we'll use standard Core Graphics transform
+            let transform = CGAffineTransform(translationX: customBackgroundOffset.width, y: -customBackgroundOffset.height).scaledBy(x: customBackgroundScale, y: customBackgroundScale)
+            let transformedBg = customBg.transformed(by: transform)
+            
+            // Apply background edits to the new custom background!
+            backgroundToUse = applyAdjustments(to: transformedBg, controls: backgroundEdits)
+        } else {
+            backgroundToUse = applyAdjustments(to: originalImage, controls: backgroundEdits)
+        }
+        
+        let editedBackground = backgroundToUse
         
         // 2. Apply edits to the subject layer (which is technically just the original image, edited, then masked)
         let editedSubject = applyAdjustments(to: originalImage, controls: subjectEdits)

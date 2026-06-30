@@ -23,6 +23,15 @@ class ProjectState {
     /// Edits applied to the background
     var backgroundEdits = EditControls()
     
+    /// The custom replacement background image
+    var customBackgroundImage: CIImage?
+    
+    /// Offset for the custom background
+    var customBackgroundOffset: CGSize = .zero
+    
+    /// Scale for the custom background
+    var customBackgroundScale: CGFloat = 1.0
+    
     /// The target currently being edited
     var activeTarget: EditTarget = .subject
     
