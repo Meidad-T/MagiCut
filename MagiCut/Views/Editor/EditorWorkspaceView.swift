@@ -155,7 +155,7 @@ struct EditorWorkspaceView: View {
                     .simultaneousGesture(
                         DragGesture(minimumDistance: 0)
                             .onChanged { value in
-                                if !viewModel.projectState.isBrushModeActive {
+                                if isEditing && !viewModel.projectState.isBrushModeActive {
                                     if abs(value.translation.width) < 5 && abs(value.translation.height) < 5 {
                                         isShowingOriginal = true
                                     } else {
@@ -258,10 +258,16 @@ struct EditorWorkspaceView: View {
                 
                 ToolbarItem(placement: .primaryAction) {
                     Button("Done") {
-                        withAnimation {
-                            isEditing = false
+                        Task {
+                            await viewModel?.saveToLibrary()
+                            await MainActor.run {
+                                withAnimation {
+                                    isEditing = false
+                                }
+                            }
                         }
                     }
+                    .disabled(viewModel?.isSaving == true)
                     .buttonStyle(.borderedProminent)
                     .tint(.yellow)
                     .foregroundColor(.black)
