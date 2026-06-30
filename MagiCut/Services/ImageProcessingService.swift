@@ -90,9 +90,32 @@ class ImageProcessingService {
         // 1. Apply edits to the background layer
         let backgroundToUse: CIImage
         if let customBg = customBackgroundImage {
-            // Apply scale and translation. CIImage origin is bottom-left, but we'll use standard Core Graphics transform
-            let transform = CGAffineTransform(translationX: customBackgroundOffset.width, y: -customBackgroundOffset.height).scaledBy(x: customBackgroundScale, y: customBackgroundScale)
-            let transformedBg = customBg.transformed(by: transform)
+            // 1. Base transform to Aspect-Fill the originalImage bounds
+            let bgAspect = customBg.extent.width / customBg.extent.height
+            let origAspect = originalImage.extent.width / originalImage.extent.height
+            
+            let baseScale: CGFloat
+            if bgAspect > origAspect {
+                baseScale = originalImage.extent.height / customBg.extent.height
+            } else {
+                baseScale = originalImage.extent.width / customBg.extent.width
+            }
+            
+            // 2. Center it initially
+            let scaledBgWidth = customBg.extent.width * baseScale
+            let scaledBgHeight = customBg.extent.height * baseScale
+            let baseXOffset = (originalImage.extent.width - scaledBgWidth) / 2.0
+            let baseYOffset = (originalImage.extent.height - scaledBgHeight) / 2.0
+            
+            // 3. Apply user's custom scale and offset ON TOP of the base aspect-fill transform
+            let baseTransform = CGAffineTransform(scaleX: baseScale, y: baseScale)
+                .concatenating(CGAffineTransform(translationX: baseXOffset, y: baseYOffset))
+                
+            let userTransform = CGAffineTransform(translationX: customBackgroundOffset.width, y: -customBackgroundOffset.height)
+                .scaledBy(x: customBackgroundScale, y: customBackgroundScale)
+                
+            let finalTransform = baseTransform.concatenating(userTransform)
+            let transformedBg = customBg.transformed(by: finalTransform)
             
             // Apply background edits to the new custom background!
             backgroundToUse = applyAdjustments(to: transformedBg, controls: backgroundEdits)
@@ -119,7 +142,9 @@ class ImageProcessingService {
         blendFilter.backgroundImage = editedBackground
         blendFilter.maskImage = scaledMask
         
-        return blendFilter.outputImage ?? originalImage
+        let finalImage = blendFilter.outputImage ?? originalImage
+        // Strictly crop to the original image extent so the canvas size never changes
+        return finalImage.cropped(to: originalImage.extent)
     }
     
     // Helper to map UI string to CoreImage Filter
