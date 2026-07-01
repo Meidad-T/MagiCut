@@ -181,33 +181,40 @@ class EditorViewModel {
     
     // MARK: - Smart Brush Selection
     
-    func toggleBrushMode() {
-        projectState.isBrushModeActive.toggle()
-        if !projectState.isBrushModeActive {
-            // Apply (bake) the current edits into the original image so they are preserved
-            if let rendered = renderedImage {
-                hasUnsavedChanges = true
-                projectState.bakedImage = rendered
-                
-                // Reset edits since they are now baked into the image
-                projectState.subjectEdits = EditControls()
-                projectState.backgroundEdits = EditControls()
-                projectState.customBackgroundImage = nil
-                projectState.customBackgroundOffset = .zero
-                projectState.customBackgroundScale = 1.0
-            }
+    func bakeEdits() {
+        if let rendered = renderedImage {
+            hasUnsavedChanges = true
+            projectState.bakedImage = rendered
             
+            projectState.subjectEdits = EditControls()
+            projectState.backgroundEdits = EditControls()
+            projectState.customBackgroundImage = nil
+            projectState.customBackgroundOffset = .zero
+            projectState.customBackgroundScale = 1.0
+        }
+    }
+    
+    func toggleBrushMode() {
+        bakeEdits()
+        
+        projectState.isBrushModeActive.toggle()
+        
+        if !projectState.isBrushModeActive {
             // Revert to original auto-mask when disabling brush mode
             if let session = projectState.maskSession {
                 projectState.subjectMask = session.originalMask
-                updateRenderedImage()
             }
         }
+        
+        updateRenderedImage()
     }
     
     func processBrushStrokes(points: [CGPoint]) {
         guard projectState.isBrushModeActive,
               let currentMask = projectState.subjectMask else { return }
+              
+        // Bake any pending slider edits BEFORE creating the new smaller selection!
+        bakeEdits()
         
         Task.detached(priority: .userInitiated) { [weak self] in
             guard let self = self else { return }
