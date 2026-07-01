@@ -3,7 +3,9 @@ import PhotosUI
 import Photos
 
 struct EditorWorkspaceView: View {
-    let source: ImageSource
+    @Binding var source: ImageSource?
+    var fetchResult: PHFetchResult<PHAsset>? = nil
+    
     @Environment(\.dependencyContainer) private var di
     @Environment(\.dismiss) private var dismiss
     
@@ -145,6 +147,39 @@ struct EditorWorkspaceView: View {
                                             }
                                         }
                                 )
+                            }
+                            
+                            // Left / Right Navigation Overlay
+                            if !isEditing {
+                                HStack {
+                                    if let idx = currentIndex, idx > 0 {
+                                        Button(action: goToPreviousImage) {
+                                            Image(systemName: "chevron.left")
+                                                .font(.largeTitle)
+                                                .foregroundColor(.white)
+                                                .padding()
+                                                .background(Color.black.opacity(0.4).clipShape(Circle()))
+                                        }
+                                        .buttonStyle(.plain)
+                                        .keyboardShortcut(.leftArrow, modifiers: [])
+                                        .padding(.leading, 20)
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    if let idx = currentIndex, let fetchResult = fetchResult, idx < fetchResult.count - 1 {
+                                        Button(action: goToNextImage) {
+                                            Image(systemName: "chevron.right")
+                                                .font(.largeTitle)
+                                                .foregroundColor(.white)
+                                                .padding()
+                                                .background(Color.black.opacity(0.4).clipShape(Circle()))
+                                        }
+                                        .buttonStyle(.plain)
+                                        .keyboardShortcut(.rightArrow, modifiers: [])
+                                        .padding(.trailing, 20)
+                                    }
+                                }
                             }
                         } else {
                             ProgressView()
@@ -306,14 +341,53 @@ struct EditorWorkspaceView: View {
             }
         }
         .onAppear {
-            if viewModel == nil {
-                let vm = EditorViewModel(source: source, visionService: di.visionService, imageProcessingService: di.imageProcessingService, photoLibraryService: di.photoLibraryService)
+            if viewModel == nil, let currentSource = source {
+                let vm = EditorViewModel(source: currentSource, visionService: di.visionService, imageProcessingService: di.imageProcessingService, photoLibraryService: di.photoLibraryService)
                 self.viewModel = vm
                 Task {
                     await vm.loadAndProcessImage()
                 }
             }
         }
+        .onChange(of: source) { newSource in
+            if let newSource = newSource {
+                let vm = EditorViewModel(source: newSource, visionService: di.visionService, imageProcessingService: di.imageProcessingService, photoLibraryService: di.photoLibraryService)
+                self.viewModel = vm
+                self.scale = 1.0
+                self.offset = .zero
+                self.isEditing = false
+                Task {
+                    await vm.loadAndProcessImage()
+                }
+            }
+        }
+    }
+    
+    // MARK: - Navigation Helpers
+    
+    private var currentIndex: Int? {
+        guard let fetchResult = fetchResult,
+              let source = source,
+              case .asset(let asset) = source else { return nil }
+        
+        let index = fetchResult.index(of: asset)
+        return index != NSNotFound ? index : nil
+    }
+    
+    private func goToNextImage() {
+        guard let fetchResult = fetchResult,
+              let idx = currentIndex,
+              idx < fetchResult.count - 1 else { return }
+        let nextAsset = fetchResult.object(at: idx + 1)
+        source = .asset(nextAsset)
+    }
+    
+    private func goToPreviousImage() {
+        guard let fetchResult = fetchResult,
+              let idx = currentIndex,
+              idx > 0 else { return }
+        let prevAsset = fetchResult.object(at: idx - 1)
+        source = .asset(prevAsset)
     }
 }
 
