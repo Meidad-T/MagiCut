@@ -8,6 +8,9 @@ class ProjectState {
     /// The original full-resolution image loaded from Photos
     var originalImage: CIImage?
     
+    /// The image containing baked brush edits, used as the base for new edits
+    var bakedImage: CIImage?
+    
     /// The downsampled image for fast UI rendering
     var displayImage: CIImage?
     

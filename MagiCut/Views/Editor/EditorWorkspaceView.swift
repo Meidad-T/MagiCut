@@ -93,7 +93,23 @@ struct EditorWorkspaceView: View {
                                     for point in brushPoints.dropFirst() {
                                         path.addLine(to: point)
                                     }
-                                    context.stroke(path, with: .color(.green.opacity(0.8)), style: StrokeStyle(lineWidth: 30, lineCap: .round, lineJoin: .round))
+                                    // Fruit Ninja Sword Effect
+                                    let rainbowColors: [Color] = [.red, .orange, .yellow, .green, .cyan, .blue, .purple, .red]
+                                    let gradient = Gradient(colors: rainbowColors)
+                                    let centerPoint = CGPoint(x: size.width / 2, y: size.height / 2)
+                                    
+                                    // Outer wide glow
+                                    var wideGlow = context
+                                    wideGlow.addFilter(.blur(radius: 6))
+                                    wideGlow.stroke(path, with: .conicGradient(gradient, center: centerPoint), style: StrokeStyle(lineWidth: 18, lineCap: .round, lineJoin: .round))
+                                    
+                                    // Inner tight glow
+                                    var tightGlow = context
+                                    tightGlow.addFilter(.blur(radius: 2))
+                                    tightGlow.stroke(path, with: .conicGradient(gradient, center: centerPoint), style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .round))
+                                    
+                                    // Solid white core
+                                    context.stroke(path, with: .color(.white), style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
                                 }
                                 .gesture(
                                     DragGesture(minimumDistance: 0)
