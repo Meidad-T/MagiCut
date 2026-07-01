@@ -8,13 +8,15 @@ struct GalleryView: View {
     
     @State private var selectedSource: ImageSource?
     
-    let columns: [GridItem] = {
+    let columnsCount: Int = {
         #if canImport(UIKit)
-        return Array(repeating: GridItem(.flexible(), spacing: 1), count: 3)
+        return 3
         #else
-        return Array(repeating: GridItem(.flexible(), spacing: 1), count: 5)
+        return 5
         #endif
     }()
+    
+    @State private var searchText = ""
     
     var body: some View {
         NavigationStack {
@@ -23,15 +25,22 @@ struct GalleryView: View {
                     if viewModel.isAuthorized {
                         ScrollView {
                             if let fetchResult = viewModel.fetchResult, fetchResult.count > 0 {
-                                LazyVGrid(columns: columns, spacing: 1) {
-                                    ForEach(0..<fetchResult.count, id: \.self) { index in
-                                        let asset = fetchResult.object(at: index)
-                                        GalleryThumbnail(asset: asset, viewModel: viewModel)
-                                            .onTapGesture {
-                                                selectedSource = .asset(asset)
+                                HStack(alignment: .top, spacing: 16) {
+                                    ForEach(0..<columnsCount, id: \.self) { colIndex in
+                                        LazyVStack(spacing: 16) {
+                                            let indices = stride(from: colIndex, to: fetchResult.count, by: columnsCount).map { $0 }
+                                            ForEach(indices, id: \.self) { index in
+                                                let asset = fetchResult.object(at: index)
+                                                GalleryThumbnail(asset: asset, viewModel: viewModel)
+                                                    .onTapGesture {
+                                                        selectedSource = .asset(asset)
+                                                    }
                                             }
+                                        }
                                     }
                                 }
+                                .padding(.horizontal, 16)
+                                .padding(.top, 16)
                             }
                         }
                     } else {
@@ -68,10 +77,19 @@ struct GalleryView: View {
                     ProgressView()
                 }
             }
-            .navigationTitle("Photos")
-            #if canImport(UIKit)
-            .navigationBarTitleDisplayMode(.large)
-            #endif
+            .navigationTitle("Recently Saved")
+            .searchable(text: $searchText, prompt: "Search")
+            .toolbar {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Button(action: {}) { Image(systemName: "minus") }
+                    Button(action: {}) { Image(systemName: "plus") }
+                    Spacer()
+                    Button(action: {}) { Image(systemName: "info.circle") }
+                    Button(action: {}) { Image(systemName: "square.and.arrow.up") }
+                    Button(action: {}) { Image(systemName: "heart") }
+                    Button(action: {}) { Image(systemName: "square.on.square") }
+                }
+            }
             .onAppear {
                 if viewModel == nil {
                     let vm = GalleryViewModel(photoLibraryService: di.photoLibraryService)
@@ -81,8 +99,13 @@ struct GalleryView: View {
                     }
                 }
             }
-            .navigationDestination(item: $selectedSource) { source in
-                EditorWorkspaceView(source: source)
+            .navigationDestination(isPresented: Binding(
+                get: { selectedSource != nil },
+                set: { if !$0 { selectedSource = nil } }
+            )) {
+                if selectedSource != nil {
+                    EditorWorkspaceView(source: $selectedSource, fetchResult: viewModel?.fetchResult)
+                }
             }
             .dropDestination(for: URL.self) { items, location in
                 if let url = items.first {
@@ -103,9 +126,13 @@ struct GalleryThumbnail: View {
     @State private var requestID: PHImageRequestID?
     
     var body: some View {
+        let aspectRatio = asset.pixelWidth > 0 && asset.pixelHeight > 0 
+            ? CGFloat(asset.pixelWidth) / CGFloat(asset.pixelHeight) 
+            : 1.0
+            
         Rectangle()
             .fill(Color.gray.opacity(0.3))
-            .aspectRatio(1, contentMode: .fit)
+            .aspectRatio(aspectRatio, contentMode: .fit)
             .overlay {
                 if let image = image {
                     Image(platformImage: image)
@@ -114,6 +141,7 @@ struct GalleryThumbnail: View {
                 }
             }
             .clipped()
+            .cornerRadius(8)
             .contentShape(Rectangle())
         .onAppear {
             // Using a standard, fixed size forces PHImageManager to use its high-performance cache
