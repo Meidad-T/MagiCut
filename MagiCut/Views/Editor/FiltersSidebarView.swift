@@ -40,16 +40,42 @@ struct FiltersSidebarView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            // Target Segmented Control
-            Picker("Edit Target", selection: Binding(
-                get: { viewModel.projectState.activeTarget },
-                set: { viewModel.setTarget($0) }
-            )) {
-                ForEach(EditTarget.allCases) { target in
-                    Text(target.rawValue).tag(target)
+            // Target Selection Toggles
+            HStack(spacing: 12) {
+                Button(action: {
+                    if viewModel.projectState.activeTarget == .subject {
+                        viewModel.setTarget(.wholeImage)
+                    } else {
+                        viewModel.setTarget(.subject)
+                    }
+                }) {
+                    Text("Subject")
+                        .font(.subheadline.bold())
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(viewModel.projectState.activeTarget == .subject ? Color.yellow : Color.gray.opacity(0.2))
+                        .foregroundColor(viewModel.projectState.activeTarget == .subject ? .black : .primary)
+                        .cornerRadius(8)
                 }
+                .buttonStyle(.plain)
+                
+                Button(action: {
+                    if viewModel.projectState.activeTarget == .background {
+                        viewModel.setTarget(.wholeImage)
+                    } else {
+                        viewModel.setTarget(.background)
+                    }
+                }) {
+                    Text("Background")
+                        .font(.subheadline.bold())
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(viewModel.projectState.activeTarget == .background ? Color.yellow : Color.gray.opacity(0.2))
+                        .foregroundColor(viewModel.projectState.activeTarget == .background ? .black : .primary)
+                        .cornerRadius(8)
+                }
+                .buttonStyle(.plain)
             }
-            .pickerStyle(.segmented)
             .padding(.horizontal)
             .padding(.top)
             
@@ -81,6 +107,7 @@ struct FilterRowView: View {
     // Active filter name based on active target
     private var activeFilterName: String {
         switch viewModel.projectState.activeTarget {
+        case .wholeImage: return viewModel.projectState.wholeImageEdits.filterName
         case .subject: return viewModel.projectState.subjectEdits.filterName
         case .background: return viewModel.projectState.backgroundEdits.filterName
         }
@@ -94,6 +121,8 @@ struct FilterRowView: View {
         Button(action: {
             // Apply filter
             switch viewModel.projectState.activeTarget {
+            case .wholeImage:
+                viewModel.projectState.wholeImageEdits.filterName = filter.rawValue
             case .subject:
                 viewModel.projectState.subjectEdits.filterName = filter.rawValue
             case .background:

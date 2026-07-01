@@ -3,6 +3,7 @@ import SwiftUI
 
 /// Represents the possible targets for applying editing controls
 enum EditTarget: String, CaseIterable, Identifiable {
+    case wholeImage = "Whole Image"
     case subject = "Subject"
     case background = "Background"
     

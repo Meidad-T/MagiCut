@@ -212,6 +212,7 @@ struct EditorWorkspaceView: View {
                                     } else {
                                         isShowingOriginal = false
                                         if viewModel.projectState.customBackgroundImage != nil {
+                                            viewModel.beginBackgroundDrag()
                                             let newOffset = CGSize(
                                                 width: finalCustomBackgroundOffset.width + value.translation.width,
                                                 height: finalCustomBackgroundOffset.height + value.translation.height
@@ -223,6 +224,7 @@ struct EditorWorkspaceView: View {
                             }
                             .onEnded { value in
                                 isShowingOriginal = false
+                                viewModel.endBackgroundDrag()
                                 if viewModel.projectState.customBackgroundImage != nil, !viewModel.projectState.isBrushModeActive {
                                     finalCustomBackgroundOffset = CGSize(
                                         width: finalCustomBackgroundOffset.width + value.translation.width,
@@ -270,6 +272,24 @@ struct EditorWorkspaceView: View {
             if isEditing {
                 ToolbarItem(placement: .navigation) {
                     HStack {
+                        Button(action: {
+                            viewModel?.undo()
+                        }) {
+                            Image(systemName: "arrow.uturn.backward")
+                        }
+                        .disabled(!(viewModel?.canUndo ?? false))
+                        .keyboardShortcut("z", modifiers: .command)
+                        .help("Undo")
+                        
+                        Button(action: {
+                            viewModel?.redo()
+                        }) {
+                            Image(systemName: "arrow.uturn.forward")
+                        }
+                        .disabled(!(viewModel?.canRedo ?? false))
+                        .keyboardShortcut("z", modifiers: [.command, .shift])
+                        .help("Redo")
+                        
                         Button("Revert to Original") {
                             viewModel?.revertToOriginal()
                             finalCustomBackgroundOffset = .zero
