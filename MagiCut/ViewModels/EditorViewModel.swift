@@ -184,17 +184,63 @@ class EditorViewModel {
     
     func processBrushStrokes(points: [CGPoint]) {
         guard projectState.isBrushModeActive,
-              let session = projectState.maskSession else { return }
+              let currentMask = projectState.subjectMask else { return }
         
         Task.detached(priority: .userInitiated) { [weak self] in
             guard let self = self else { return }
             
-            // Get all unique object instances intersected by the drawn stroke
-            let instances = self.visionService.getInstances(at: points, in: session)
-            guard !instances.isEmpty else { return }
+            let width = currentMask.extent.width
+            let height = currentMask.extent.height
             
-            // Regenerate the mask isolating only those specific instances
-            if let newMask = try? self.visionService.generateMask(for: instances, in: session) {
+            // Create a grayscale context
+            guard let cgContext = CGContext(
+                data: nil,
+                width: Int(width),
+                height: Int(height),
+                bitsPerComponent: 8,
+                bytesPerRow: 0,
+                space: CGColorSpaceCreateDeviceGray(),
+                bitmapInfo: CGImageAlphaInfo.none.rawValue
+            ) else { return }
+            
+            // Fill background with black (cut out)
+            cgContext.setFillColor(CGColor(gray: 0, alpha: 1))
+            cgContext.fill(CGRect(x: 0, y: 0, width: width, height: height))
+            
+            // Create the path from normalized points
+            let path = CGMutablePath()
+            guard let first = points.first else { return }
+            
+            // Map normalized points to the mask's extent, flipping the Y axis since CoreImage origin is bottom-left
+            path.move(to: CGPoint(x: first.x * width, y: (1.0 - first.y) * height))
+            for point in points.dropFirst() {
+                path.addLine(to: CGPoint(x: point.x * width, y: (1.0 - point.y) * height))
+            }
+            path.closeSubpath()
+            
+            // Draw filled path in white (keep)
+            cgContext.setFillColor(CGColor(gray: 1, alpha: 1))
+            cgContext.addPath(path)
+            cgContext.fillPath()
+            
+            // Also stroke the path with a thick brush to cover the drawn outline itself
+            cgContext.setStrokeColor(CGColor(gray: 1, alpha: 1))
+            cgContext.setLineWidth(max(width, height) * 0.05) // 5% of max dimension
+            cgContext.setLineCap(.round)
+            cgContext.setLineJoin(.round)
+            cgContext.addPath(path)
+            cgContext.strokePath()
+            
+            guard let brushCGImage = cgContext.makeImage() else { return }
+            let brushCIImage = CIImage(cgImage: brushCGImage)
+            
+            // Intersect the drawn brush mask with the current subject mask
+            let blendFilter = CIFilter.blendWithMask()
+            blendFilter.inputImage = currentMask
+            blendFilter.backgroundImage = CIImage(color: .black).cropped(to: currentMask.extent)
+            blendFilter.maskImage = brushCIImage
+            
+            if let newMask = blendFilter.outputImage {
                 Task { @MainActor in
                     self.projectState.subjectMask = newMask
                     self.updateRenderedImage()
