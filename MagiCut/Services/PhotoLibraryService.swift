@@ -24,19 +24,14 @@ class PhotoLibraryService {
     }
     
     /// Fetches all images from the library, sorted by creation date
-    func fetchAssets() -> [PHAsset] {
+    func fetchAssets() -> PHFetchResult<PHAsset>? {
         let currentStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-        guard currentStatus == .authorized || currentStatus == .limited else { return [] }
+        guard currentStatus == .authorized || currentStatus == .limited else { return nil }
         
         let fetchOptions = PHFetchOptions()
         fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
         
-        let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
-        var assets: [PHAsset] = []
-        fetchResult.enumerateObjects { (asset, _, _) in
-            assets.append(asset)
-        }
-        return assets
+        return PHAsset.fetchAssets(with: .image, options: fetchOptions)
     }
     
     /// Fetches a high quality CIImage from a PHAsset for editing
@@ -62,7 +57,7 @@ class PhotoLibraryService {
     }
     
     /// Saves a CIImage to the Photo Library
-    func saveImageToLibrary(ciImage: CIImage, context: CIContext) async throws {
+    func saveImageToLibrary(ciImage: CIImage, context: CIContext, originalAsset: PHAsset? = nil) async throws {
         // Render CIImage to CGImage using DisplayP3 color space
         let colorSpace = CGColorSpace(name: CGColorSpace.displayP3) ?? CGColorSpaceCreateDeviceRGB()
         guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent, format: .RGBA8, colorSpace: colorSpace) else {
@@ -71,14 +66,20 @@ class PhotoLibraryService {
         let uiImage = PlatformImage(cgImage: cgImage)
         
         try await PHPhotoLibrary.shared().performChanges {
+            let request: PHAssetCreationRequest
             #if canImport(UIKit)
-            PHAssetChangeRequest.creationRequestForAsset(from: uiImage)
+            request = PHAssetCreationRequest.creationRequestForAsset(from: uiImage)
             #elseif canImport(AppKit)
-            // On macOS, saving to Photo Library via PHAssetChangeRequest requires a URL or file path,
-            // or we can just try passing the image if macOS SDK supports it.
-            // Let's use the memory-based creation request if available
-            PHAssetCreationRequest.forAsset().addResource(with: .photo, data: uiImage.tiffRepresentation!, options: nil)
+            request = PHAssetCreationRequest.forAsset()
+            if let tiffData = uiImage.tiffRepresentation {
+                request.addResource(with: .photo, data: tiffData, options: nil)
+            }
             #endif
+            
+            if let originalAsset = originalAsset {
+                request.creationDate = originalAsset.creationDate
+                request.location = originalAsset.location
+            }
         }
     }
 }

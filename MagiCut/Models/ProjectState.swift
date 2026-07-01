@@ -8,6 +8,9 @@ class ProjectState {
     /// The original full-resolution image loaded from Photos
     var originalImage: CIImage?
     
+    /// The image containing baked brush edits, used as the base for new edits
+    var bakedImage: CIImage?
+    
     /// The downsampled image for fast UI rendering
     var displayImage: CIImage?
     
@@ -23,6 +26,21 @@ class ProjectState {
     /// Edits applied to the background
     var backgroundEdits = EditControls()
     
+    /// The custom replacement background image
+    var customBackgroundImage: CIImage?
+    
+    /// Offset for the custom background
+    var customBackgroundOffset: CGSize = .zero
+    
+    /// Scale for the custom background
+    var customBackgroundScale: CGFloat = 1.0
+    
     /// The target currently being edited
     var activeTarget: EditTarget = .subject
+    
+    /// The interactive selection session
+    var maskSession: SubjectMaskSession?
+    
+    /// Whether Smart Brush mode is active
+    var isBrushModeActive: Bool = false
 }
