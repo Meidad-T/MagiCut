@@ -174,6 +174,23 @@ class EditorViewModel {
     func toggleBrushMode() {
         projectState.isBrushModeActive.toggle()
         if !projectState.isBrushModeActive {
+            // Apply (bake) the current edits into the original image so they are preserved
+            if let rendered = renderedImage {
+                projectState.originalImage = rendered
+                
+                // Update the base UI image for comparison
+                if let cgImage = imageProcessingService.context.createCGImage(rendered, from: rendered.extent) {
+                    self.originalUIImage = PlatformImage(cgImage: cgImage)
+                }
+                
+                // Reset edits since they are now baked into the image
+                projectState.subjectEdits = EditControls()
+                projectState.backgroundEdits = EditControls()
+                projectState.customBackgroundImage = nil
+                projectState.customBackgroundOffset = .zero
+                projectState.customBackgroundScale = 1.0
+            }
+            
             // Revert to original auto-mask when disabling brush mode
             if let session = projectState.maskSession {
                 projectState.subjectMask = session.originalMask
