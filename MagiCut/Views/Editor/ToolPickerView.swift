@@ -15,16 +15,42 @@ struct AdjustSidebarView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                // Target Segmented Control
-                Picker("Edit Target", selection: Binding(
-                    get: { viewModel.projectState.activeTarget },
-                    set: { viewModel.setTarget($0) }
-                )) {
-                    ForEach(EditTarget.allCases) { target in
-                        Text(target.rawValue).tag(target)
+                // Target Selection Toggles
+                HStack(spacing: 12) {
+                    Button(action: {
+                        if viewModel.projectState.activeTarget == .subject {
+                            viewModel.setTarget(.wholeImage)
+                        } else {
+                            viewModel.setTarget(.subject)
+                        }
+                    }) {
+                        Text("Subject")
+                            .font(.subheadline.bold())
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(viewModel.projectState.activeTarget == .subject ? Color.yellow : Color.gray.opacity(0.2))
+                            .foregroundColor(viewModel.projectState.activeTarget == .subject ? .black : .primary)
+                            .cornerRadius(8)
                     }
+                    .buttonStyle(.plain)
+                    
+                    Button(action: {
+                        if viewModel.projectState.activeTarget == .background {
+                            viewModel.setTarget(.wholeImage)
+                        } else {
+                            viewModel.setTarget(.background)
+                        }
+                    }) {
+                        Text("Background")
+                            .font(.subheadline.bold())
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(viewModel.projectState.activeTarget == .background ? Color.yellow : Color.gray.opacity(0.2))
+                            .foregroundColor(viewModel.projectState.activeTarget == .background ? .black : .primary)
+                            .cornerRadius(8)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .pickerStyle(.segmented)
                 .padding(.horizontal)
                 .padding(.top)
                 
@@ -110,8 +136,12 @@ struct AdjustSidebarView: View {
                     .font(.caption.monospacedDigit())
                     .foregroundColor(.secondary)
             }
-            Slider(value: value, in: range)
-                .tint(.yellow)
+            Slider(value: value, in: range) { editing in
+                if editing {
+                    viewModel.snapshotState()
+                }
+            }
+            .tint(.yellow)
         }
     }
 }

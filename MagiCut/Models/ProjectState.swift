@@ -20,6 +20,9 @@ class ProjectState {
     /// True if Vision is currently generating the mask
     var isGeneratingMask: Bool = false
     
+    /// Edits applied to the whole image as a base layer
+    var wholeImageEdits = EditControls()
+    
     /// Edits applied to the subject
     var subjectEdits = EditControls()
     
@@ -36,7 +39,7 @@ class ProjectState {
     var customBackgroundScale: CGFloat = 1.0
     
     /// The target currently being edited
-    var activeTarget: EditTarget = .subject
+    var activeTarget: EditTarget = .wholeImage
     
     /// The interactive selection session
     var maskSession: SubjectMaskSession?
@@ -44,3 +47,18 @@ class ProjectState {
     /// Whether Smart Brush mode is active
     var isBrushModeActive: Bool = false
 }
+
+/// A deep-copy snapshot of the project state for undo/redo
+struct ProjectStateSnapshot {
+    let bakedImage: CIImage?
+    let subjectMask: CIImage?
+    let wholeImageEdits: EditControls
+    let subjectEdits: EditControls
+    let backgroundEdits: EditControls
+    let customBackgroundImage: CIImage?
+    let customBackgroundOffset: CGSize
+    let customBackgroundScale: CGFloat
+    let activeTarget: EditTarget
+    let isBrushModeActive: Bool
+}
+

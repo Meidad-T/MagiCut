@@ -23,6 +23,15 @@ class EditorViewModel {
     var isSaving: Bool = false
     var saveError: Error?
     
+    // MARK: - Undo/Redo State
+    private var undoStack: [ProjectStateSnapshot] = []
+    private var redoStack: [ProjectStateSnapshot] = []
+    private let maxHistory = 15
+    private var isDraggingBackground = false
+    
+    var canUndo: Bool { !undoStack.isEmpty }
+    var canRedo: Bool { !redoStack.isEmpty }
+    
     init(source: ImageSource, visionService: VisionService, imageProcessingService: ImageProcessingService, photoLibraryService: PhotoLibraryService) {
         self.source = source
         self.visionService = visionService
@@ -77,18 +86,18 @@ class EditorViewModel {
     }
     
     func updateRenderedImage() {
-        guard let base = projectState.bakedImage ?? projectState.originalImage,
-              let mask = projectState.subjectMask else {
+        guard let base = projectState.bakedImage ?? projectState.originalImage else { return }
+        let baseWithGlobalEdits = imageProcessingService.applyAdjustments(to: base, controls: projectState.wholeImageEdits)
+        
+        guard let mask = projectState.subjectMask else {
             // No mask yet, just apply background edits to the whole image
-            if let img = projectState.bakedImage ?? projectState.originalImage {
-                renderedImage = imageProcessingService.applyAdjustments(to: img, controls: projectState.backgroundEdits)
-                generatePlatformImage()
-            }
+            renderedImage = imageProcessingService.applyAdjustments(to: baseWithGlobalEdits, controls: projectState.backgroundEdits)
+            generatePlatformImage()
             return
         }
         
         renderedImage = imageProcessingService.compositeImages(
-            originalImage: base,
+            originalImage: baseWithGlobalEdits,
             subjectMask: mask,
             subjectEdits: projectState.subjectEdits,
             backgroundEdits: projectState.backgroundEdits,
@@ -145,7 +154,85 @@ class EditorViewModel {
         projectState.activeTarget = target
     }
     
+    // MARK: - Undo / Redo
+    
+    func snapshotState() {
+        let snapshot = ProjectStateSnapshot(
+            bakedImage: projectState.bakedImage,
+            subjectMask: projectState.subjectMask,
+            wholeImageEdits: projectState.wholeImageEdits,
+            subjectEdits: projectState.subjectEdits,
+            backgroundEdits: projectState.backgroundEdits,
+            customBackgroundImage: projectState.customBackgroundImage,
+            customBackgroundOffset: projectState.customBackgroundOffset,
+            customBackgroundScale: projectState.customBackgroundScale,
+            activeTarget: projectState.activeTarget,
+            isBrushModeActive: projectState.isBrushModeActive
+        )
+        undoStack.append(snapshot)
+        if undoStack.count > maxHistory {
+            undoStack.removeFirst()
+        }
+        redoStack.removeAll()
+    }
+    
+    private func applySnapshot(_ snapshot: ProjectStateSnapshot) {
+        projectState.bakedImage = snapshot.bakedImage
+        projectState.subjectMask = snapshot.subjectMask
+        projectState.wholeImageEdits = snapshot.wholeImageEdits
+        projectState.subjectEdits = snapshot.subjectEdits
+        projectState.backgroundEdits = snapshot.backgroundEdits
+        projectState.customBackgroundImage = snapshot.customBackgroundImage
+        projectState.customBackgroundOffset = snapshot.customBackgroundOffset
+        projectState.customBackgroundScale = snapshot.customBackgroundScale
+        projectState.activeTarget = snapshot.activeTarget
+        projectState.isBrushModeActive = snapshot.isBrushModeActive
+        
+        hasUnsavedChanges = true
+        updateRenderedImage()
+    }
+    
+    func undo() {
+        guard let last = undoStack.popLast() else { return }
+        
+        let current = ProjectStateSnapshot(
+            bakedImage: projectState.bakedImage,
+            subjectMask: projectState.subjectMask,
+            wholeImageEdits: projectState.wholeImageEdits,
+            subjectEdits: projectState.subjectEdits,
+            backgroundEdits: projectState.backgroundEdits,
+            customBackgroundImage: projectState.customBackgroundImage,
+            customBackgroundOffset: projectState.customBackgroundOffset,
+            customBackgroundScale: projectState.customBackgroundScale,
+            activeTarget: projectState.activeTarget,
+            isBrushModeActive: projectState.isBrushModeActive
+        )
+        redoStack.append(current)
+        applySnapshot(last)
+    }
+    
+    func redo() {
+        guard let next = redoStack.popLast() else { return }
+        
+        let current = ProjectStateSnapshot(
+            bakedImage: projectState.bakedImage,
+            subjectMask: projectState.subjectMask,
+            wholeImageEdits: projectState.wholeImageEdits,
+            subjectEdits: projectState.subjectEdits,
+            backgroundEdits: projectState.backgroundEdits,
+            customBackgroundImage: projectState.customBackgroundImage,
+            customBackgroundOffset: projectState.customBackgroundOffset,
+            customBackgroundScale: projectState.customBackgroundScale,
+            activeTarget: projectState.activeTarget,
+            isBrushModeActive: projectState.isBrushModeActive
+        )
+        undoStack.append(current)
+        applySnapshot(next)
+    }
+    
     func revertToOriginal() {
+        snapshotState()
+        projectState.wholeImageEdits = EditControls()
         projectState.subjectEdits = EditControls()
         projectState.backgroundEdits = EditControls()
         projectState.customBackgroundImage = nil
@@ -160,10 +247,22 @@ class EditorViewModel {
     
     // MARK: - Custom Background
     
+    func beginBackgroundDrag() {
+        if !isDraggingBackground {
+            snapshotState()
+            isDraggingBackground = true
+        }
+    }
+    
+    func endBackgroundDrag() {
+        isDraggingBackground = false
+    }
+    
     func setCustomBackground(from data: Data) {
         guard let platformImage = PlatformImage(data: data),
               let cgImage = platformImage.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
         
+        snapshotState()
         hasUnsavedChanges = true
         projectState.customBackgroundImage = CIImage(cgImage: cgImage)
         projectState.customBackgroundOffset = .zero
@@ -181,33 +280,45 @@ class EditorViewModel {
     
     // MARK: - Smart Brush Selection
     
-    func toggleBrushMode() {
-        projectState.isBrushModeActive.toggle()
-        if !projectState.isBrushModeActive {
-            // Apply (bake) the current edits into the original image so they are preserved
-            if let rendered = renderedImage {
-                hasUnsavedChanges = true
-                projectState.bakedImage = rendered
-                
-                // Reset edits since they are now baked into the image
-                projectState.subjectEdits = EditControls()
-                projectState.backgroundEdits = EditControls()
-                projectState.customBackgroundImage = nil
-                projectState.customBackgroundOffset = .zero
-                projectState.customBackgroundScale = 1.0
-            }
+    func bakeEdits() {
+        if let rendered = renderedImage {
+            hasUnsavedChanges = true
+            projectState.bakedImage = rendered
             
+            projectState.wholeImageEdits = EditControls()
+            projectState.subjectEdits = EditControls()
+            projectState.backgroundEdits = EditControls()
+            projectState.customBackgroundImage = nil
+            projectState.customBackgroundOffset = .zero
+            projectState.customBackgroundScale = 1.0
+        }
+    }
+    
+    func toggleBrushMode() {
+        snapshotState()
+        bakeEdits()
+        
+        projectState.isBrushModeActive.toggle()
+        
+        if projectState.isBrushModeActive {
+            projectState.activeTarget = .subject
+        } else {
             // Revert to original auto-mask when disabling brush mode
             if let session = projectState.maskSession {
                 projectState.subjectMask = session.originalMask
-                updateRenderedImage()
             }
         }
+        
+        updateRenderedImage()
     }
     
     func processBrushStrokes(points: [CGPoint]) {
         guard projectState.isBrushModeActive,
               let currentMask = projectState.subjectMask else { return }
+              
+        // Bake any pending slider edits BEFORE creating the new smaller selection!
+        snapshotState()
+        bakeEdits()
         
         Task.detached(priority: .userInitiated) { [weak self] in
             guard let self = self else { return }
@@ -307,6 +418,29 @@ class EditorViewModel {
             blendFilter.maskImage = finalMask
             
             if let newMask = blendFilter.outputImage {
+                let extent = newMask.extent
+                let maxFilter = CIFilter(name: "CIAreaMaximum")!
+                maxFilter.setValue(newMask, forKey: kCIInputImageKey)
+                maxFilter.setValue(CIVector(cgRect: extent), forKey: kCIInputExtentKey)
+                
+                var isEmpty = false
+                if let output = maxFilter.outputImage {
+                    var bitmap = [UInt8](repeating: 0, count: 4)
+                    self.imageProcessingService.context.render(output, toBitmap: &bitmap, rowBytes: 4, bounds: CGRect(x: 0, y: 0, width: 1, height: 1), format: .RGBA8, colorSpace: nil)
+                    
+                    // The red channel represents the mask intensity. < 5 means it's effectively blank.
+                    if bitmap[0] < 5 {
+                        isEmpty = true
+                    }
+                }
+                
+                if isEmpty {
+                    Task { @MainActor in
+                        self.undo()
+                    }
+                    return
+                }
+                
                 Task { @MainActor in
                     self.projectState.subjectMask = newMask
                     self.updateRenderedImage()
@@ -317,61 +451,72 @@ class EditorViewModel {
     
     private func updateControl(_ block: (inout EditControls) -> Void) {
         hasUnsavedChanges = true
-        if projectState.activeTarget == .subject {
+        switch projectState.activeTarget {
+        case .wholeImage:
+            block(&projectState.wholeImageEdits)
+        case .subject:
             block(&projectState.subjectEdits)
-        } else {
+        case .background:
             block(&projectState.backgroundEdits)
         }
         updateRenderedImage()
     }
+    
+    private var activeEdits: EditControls {
+        switch projectState.activeTarget {
+        case .wholeImage: return projectState.wholeImageEdits
+        case .subject: return projectState.subjectEdits
+        case .background: return projectState.backgroundEdits
+        }
+    }
 
     var activeExposure: Float {
-        get { projectState.activeTarget == .subject ? projectState.subjectEdits.exposure : projectState.backgroundEdits.exposure }
+        get { activeEdits.exposure }
         set { updateControl { $0.exposure = newValue } }
     }
     
     var activeSaturation: Float {
-        get { projectState.activeTarget == .subject ? projectState.subjectEdits.saturation : projectState.backgroundEdits.saturation }
+        get { activeEdits.saturation }
         set { updateControl { $0.saturation = newValue } }
     }
     
     var activeBrightness: Float {
-        get { projectState.activeTarget == .subject ? projectState.subjectEdits.brightness : projectState.backgroundEdits.brightness }
+        get { activeEdits.brightness }
         set { updateControl { $0.brightness = newValue } }
     }
     
     var activeContrast: Float {
-        get { projectState.activeTarget == .subject ? projectState.subjectEdits.contrast : projectState.backgroundEdits.contrast }
+        get { activeEdits.contrast }
         set { updateControl { $0.contrast = newValue } }
     }
     
     var activeHighlights: Float {
-        get { projectState.activeTarget == .subject ? projectState.subjectEdits.highlights : projectState.backgroundEdits.highlights }
+        get { activeEdits.highlights }
         set { updateControl { $0.highlights = newValue } }
     }
     
     var activeShadows: Float {
-        get { projectState.activeTarget == .subject ? projectState.subjectEdits.shadows : projectState.backgroundEdits.shadows }
+        get { activeEdits.shadows }
         set { updateControl { $0.shadows = newValue } }
     }
     
     var activeVibrance: Float {
-        get { projectState.activeTarget == .subject ? projectState.subjectEdits.vibrance : projectState.backgroundEdits.vibrance }
+        get { activeEdits.vibrance }
         set { updateControl { $0.vibrance = newValue } }
     }
     
     var activeTemperature: Float {
-        get { projectState.activeTarget == .subject ? projectState.subjectEdits.temperature : projectState.backgroundEdits.temperature }
+        get { activeEdits.temperature }
         set { updateControl { $0.temperature = newValue } }
     }
     
     var activeTint: Float {
-        get { projectState.activeTarget == .subject ? projectState.subjectEdits.tint : projectState.backgroundEdits.tint }
+        get { activeEdits.tint }
         set { updateControl { $0.tint = newValue } }
     }
     
     var activeSharpness: Float {
-        get { projectState.activeTarget == .subject ? projectState.subjectEdits.sharpness : projectState.backgroundEdits.sharpness }
+        get { activeEdits.sharpness }
         set { updateControl { $0.sharpness = newValue } }
     }
     
@@ -391,18 +536,23 @@ class EditorViewModel {
             let scale = 100.0 / max(original.extent.width, original.extent.height)
             let tinyImage = original.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
             
+            var testWholeImageEdits = self.projectState.wholeImageEdits
             var testSubjectEdits = currentSubjectEdits
             var testBackgroundEdits = currentBackgroundEdits
             
-            if activeTarget == .subject {
+            if activeTarget == .wholeImage {
+                testWholeImageEdits.filterName = filterName
+            } else if activeTarget == .subject {
                 testSubjectEdits.filterName = filterName
             } else {
                 testBackgroundEdits.filterName = filterName
             }
             
-            let customBackgroundImage = projectState.customBackgroundImage
-            let customBackgroundOffset = projectState.customBackgroundOffset
-            let customBackgroundScale = projectState.customBackgroundScale
+            let customBackgroundImage = self.projectState.customBackgroundImage
+            let customBackgroundOffset = self.projectState.customBackgroundOffset
+            let customBackgroundScale = self.projectState.customBackgroundScale
+            
+            let tinyImageWithGlobal = self.imageProcessingService.applyAdjustments(to: tinyImage, controls: testWholeImageEdits)
             
             let finalCI: CIImage
             if let mask = subjectMask {
@@ -411,7 +561,7 @@ class EditorViewModel {
                 let tinyMask = mask.transformed(by: CGAffineTransform(scaleX: maskScaleX, y: maskScaleY))
                 
                 finalCI = self.imageProcessingService.compositeImages(
-                    originalImage: tinyImage,
+                    originalImage: tinyImageWithGlobal,
                     subjectMask: tinyMask,
                     subjectEdits: testSubjectEdits,
                     backgroundEdits: testBackgroundEdits,
@@ -420,7 +570,7 @@ class EditorViewModel {
                     customBackgroundScale: customBackgroundScale
                 )
             } else {
-                finalCI = self.imageProcessingService.applyAdjustments(to: tinyImage, controls: testBackgroundEdits)
+                finalCI = self.imageProcessingService.applyAdjustments(to: tinyImageWithGlobal, controls: testBackgroundEdits)
             }
             
             if let cgImage = self.imageProcessingService.context.createCGImage(finalCI, from: finalCI.extent) {
