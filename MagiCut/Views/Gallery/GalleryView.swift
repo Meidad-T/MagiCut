@@ -99,8 +99,13 @@ struct GalleryView: View {
                     }
                 }
             }
-            .navigationDestination(item: $selectedSource) { source in
-                EditorWorkspaceView(source: source)
+            .navigationDestination(isPresented: Binding(
+                get: { selectedSource != nil },
+                set: { if !$0 { selectedSource = nil } }
+            )) {
+                if selectedSource != nil {
+                    EditorWorkspaceView(source: $selectedSource, fetchResult: viewModel?.fetchResult)
+                }
             }
             .dropDestination(for: URL.self) { items, location in
                 if let url = items.first {

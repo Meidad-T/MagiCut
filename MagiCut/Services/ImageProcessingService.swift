@@ -86,9 +86,44 @@ class ImageProcessingService {
     }
     
     /// Composites the edited subject and edited background using the vision mask
-    func compositeImages(originalImage: CIImage, subjectMask: CIImage, subjectEdits: EditControls, backgroundEdits: EditControls) -> CIImage {
+    func compositeImages(originalImage: CIImage, subjectMask: CIImage, subjectEdits: EditControls, backgroundEdits: EditControls, customBackgroundImage: CIImage? = nil, customBackgroundOffset: CGSize = .zero, customBackgroundScale: CGFloat = 1.0) -> CIImage {
         // 1. Apply edits to the background layer
-        let editedBackground = applyAdjustments(to: originalImage, controls: backgroundEdits)
+        let backgroundToUse: CIImage
+        if let customBg = customBackgroundImage {
+            // 1. Base transform to Aspect-Fill the originalImage bounds
+            let bgAspect = customBg.extent.width / customBg.extent.height
+            let origAspect = originalImage.extent.width / originalImage.extent.height
+            
+            let baseScale: CGFloat
+            if bgAspect > origAspect {
+                baseScale = originalImage.extent.height / customBg.extent.height
+            } else {
+                baseScale = originalImage.extent.width / customBg.extent.width
+            }
+            
+            // 2. Center it initially
+            let scaledBgWidth = customBg.extent.width * baseScale
+            let scaledBgHeight = customBg.extent.height * baseScale
+            let baseXOffset = (originalImage.extent.width - scaledBgWidth) / 2.0
+            let baseYOffset = (originalImage.extent.height - scaledBgHeight) / 2.0
+            
+            // 3. Apply user's custom scale and offset ON TOP of the base aspect-fill transform
+            let baseTransform = CGAffineTransform(scaleX: baseScale, y: baseScale)
+                .concatenating(CGAffineTransform(translationX: baseXOffset, y: baseYOffset))
+                
+            let userTransform = CGAffineTransform(translationX: customBackgroundOffset.width, y: -customBackgroundOffset.height)
+                .scaledBy(x: customBackgroundScale, y: customBackgroundScale)
+                
+            let finalTransform = baseTransform.concatenating(userTransform)
+            let transformedBg = customBg.transformed(by: finalTransform)
+            
+            // Apply background edits to the new custom background!
+            backgroundToUse = applyAdjustments(to: transformedBg, controls: backgroundEdits)
+        } else {
+            backgroundToUse = applyAdjustments(to: originalImage, controls: backgroundEdits)
+        }
+        
+        let editedBackground = backgroundToUse
         
         // 2. Apply edits to the subject layer (which is technically just the original image, edited, then masked)
         let editedSubject = applyAdjustments(to: originalImage, controls: subjectEdits)
@@ -107,7 +142,9 @@ class ImageProcessingService {
         blendFilter.backgroundImage = editedBackground
         blendFilter.maskImage = scaledMask
         
-        return blendFilter.outputImage ?? originalImage
+        let finalImage = blendFilter.outputImage ?? originalImage
+        // Strictly crop to the original image extent so the canvas size never changes
+        return finalImage.cropped(to: originalImage.extent)
     }
     
     // Helper to map UI string to CoreImage Filter
@@ -203,5 +240,23 @@ class ImageProcessingService {
         }
         
         return result
+    }
+    
+    /// Generates a white outline image with a transparent background from a mask
+    func generateOutlineImage(from mask: CIImage) -> PlatformImage? {
+        let edgeFilter = CIFilter.morphologyGradient()
+        edgeFilter.inputImage = mask
+        edgeFilter.radius = 5.0
+        
+        guard let edgeImage = edgeFilter.outputImage else { return nil }
+        
+        let alphaFilter = CIFilter.maskToAlpha()
+        alphaFilter.inputImage = edgeImage
+        guard let finalCI = alphaFilter.outputImage else { return nil }
+        
+        if let cgImage = context.createCGImage(finalCI, from: mask.extent) {
+            return PlatformImage(cgImage: cgImage)
+        }
+        return nil
     }
 }
